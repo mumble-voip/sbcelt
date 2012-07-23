@@ -67,8 +67,7 @@ int main(int argc, char *argv[]) {
 	}
 	uint64_t elapsed = mtime() - begin;
 
-	printf("niter = %i\n", niter);
-	printf("elapsed usec = %lu\n", elapsed);
+	printf("{\"niter\": %i, \"elapsed_usec\": %lu}\n", niter, elapsed);
 
 	return 0;
 }
