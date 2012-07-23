@@ -1,10 +1,10 @@
 include ../Make.conf
 
-CFLAGS = -O2 -DHAVE_CONFIG_H -I. -I../celt-0.7.0/libcelt/
+CFLAGS = -O2 -DHAVE_CONFIG_H -I. -I../celt-0.7.0/libcelt/ -I../helper
 LDFLAGS = -lm -lpthread -lrt
 
 CELT = ../celt-0.7.0/libcelt
-TARGET = sbcelt-helper
+TARGET = celt-bench
 
 SOURCES = \
 	$(CELT)/bands.c \
@@ -26,7 +26,7 @@ SOURCES = \
 	$(CELT)/rangeenc.c \
 	$(CELT)/rate.c \
 	$(CELT)/vq.c \
-	sbcelt-helper.c \
-	seccomp-sandbox.c
+	gentest.c \
+	bench.c
 
 include ../Make.cmd

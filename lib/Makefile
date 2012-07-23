@@ -1,6 +1,6 @@
 TARGET = libsbcelt.a
 
-CFLAGS = -I../celt-0.7.0/libcelt/
+CFLAGS = -O2 -I../celt-0.7.0/libcelt/
 
 SOURCES = \
 	libsbcelt.c
