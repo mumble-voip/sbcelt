@@ -79,6 +79,11 @@ void *SBCELT_HelperMonitor(void *udata) {
 	uint64_t lastdead = 0;
 	(void) udata;
 
+	char *helper = getenv("SBCELT_HELPER_BINARY");
+	if (helper == NULL) {
+		helper = "/usr/bin/sbcelt-helper";
+	}
+
 	while (1) {
 		uint64_t now = mtime();
 		uint64_t elapsed = now - lastdead;
@@ -98,7 +103,7 @@ void *SBCELT_HelperMonitor(void *udata) {
 			continue;
 		} else if (child == 0) {
 			char *const argv[] = {
-				"/usr/bin/sbcelt-helper",
+				helper,
 				NULL,
 			};
 			execv(argv[0], argv);
