@@ -269,10 +269,15 @@ int celt_decode_float(CELTDecoder *st, const unsigned char *data, int len, float
 	}
 
 	if (!bad) {
+#ifdef DYNAMIC_TIMEOUT
 		lastrun = mtime() - begin;
+#endif
 		debugf("spent %lu usecs in decode\n", lastrun);
 		memcpy(pcm, workpage->decbuf, sizeof(float)*480);
 	} else {
+#ifdef DYNAMIC_TIMEOUT
+		lastrun = 3000;
+#endif
 		memset(pcm, 0, sizeof(float)*480);
 	}
 
