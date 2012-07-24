@@ -84,12 +84,12 @@ int main(int argc, char *argv[]) {
 		float *dst = &workpage->decbuf[0];
 
 		// Wait for the lib to signal us.
-		do {
+		while (workpage->ready == 1) {
 			int err = futex_wait(&workpage->ready, 1);
 			if (err == 0 || err == EWOULDBLOCK) {
 				break;
 			}
-		} while (workpage->ready == 1);
+		}
 
 		debugf("waiting for work...");
 
