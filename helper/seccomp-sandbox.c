@@ -32,8 +32,6 @@ int seccomp_sandbox_filter_init(void) {
 		ALLOW_SYSCALL(sigreturn),
 #endif
 		ALLOW_SYSCALL(futex),
-		ALLOW_SYSCALL(brk),
-		ALLOW_SYSCALL(mmap),
 #ifdef DEBUG
 		ALLOW_SYSCALL(write),
 		ALLOW_SYSCALL(read),
