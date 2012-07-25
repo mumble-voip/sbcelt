@@ -21,6 +21,7 @@
 #include <fcntl.h>
 
 #include "celt.h"
+#include "../sbcelt-internal.h"
 #include "../sbcelt.h"
 
 #ifdef DEBUG

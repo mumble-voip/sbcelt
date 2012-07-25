@@ -21,7 +21,7 @@
 #include <sys/prctl.h>
 
 #include "celt.h"
-#include "../sbcelt.h"
+#include "../sbcelt-internal.h"
 
 #include "seccomp-sandbox.h"
 

@@ -5,32 +5,9 @@
 #ifndef __SBCELT_H__
 #define __SBCELT_H__
 
-#define SBCELT_PAGES 2
-#define SBCELT_SLOTS 40
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-struct SBCELTWorkPage {
-	int            slot;
-	int            ready;
-	int            busywait;
-	unsigned int   len;
-	unsigned char  encbuf[2036];
-	float          decbuf[511];
-};
-
-struct SBCELTDecoderSlot {
-	int   available;
-	int   dispose;
-};
-
-struct SBCELTDecoderPage {
-	struct SBCELTDecoderSlot slots[SBCELT_SLOTS];
-};
-
-int SBCELT_Init();
 
 #ifdef SBCELT_PREFIX_API
 # define SBCELT_FUNC(x) sb ## x
@@ -38,9 +15,9 @@ int SBCELT_Init();
 # define SBCELT_FUNC(x) x
 #endif
 
-CELTMode *SBCELT_FUNC(sbcelt_mode_create)(celt_int32 Fs, int frame_size, int *error);
+CELTMode *SBCELT_FUNC(celt_mode_create)(celt_int32 Fs, int frame_size, int *error);
 int SBCELT_FUNC(celt_decode_float)(CELTDecoder *st, const unsigned char *data, int len, float *pcm);
-void SBCELT_FUNC(sbcelt_mode_destroy)(CELTMode *mode);
+void SBCELT_FUNC(celt_mode_destroy)(CELTMode *mode);
 int SBCELT_FUNC(celt_mode_info)(const CELTMode *mode, int request, celt_int32 *value);
 CELTEncoder *SBCELT_FUNC(celt_encoder_create)(const CELTMode *mode, int channels, int *error);
 void SBCELT_FUNC(celt_encoder_destroy)(CELTEncoder *st);

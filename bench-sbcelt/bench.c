@@ -7,6 +7,7 @@
 
 #include <celt.h>
 #include "common.h"
+#include "../sbcelt.h"
 
 #define USEC_PER_SEC  1000000
 #define NSEC_PER_USEC 1000
