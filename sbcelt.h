@@ -9,8 +9,31 @@
 extern "C" {
 #endif
 
+// Define SBCELT_PREFIX_API to prefix all exported
+// symbols with 'sb'.
 #ifdef SBCELT_PREFIX_API
 # define SBCELT_FUNC(x) sb ## x
+  // Define SBCELT_COMPAT_API to have the preprocessor
+  // replace all occurrences of calls to vanilla CELT
+  // functions with calls to their SBCELT 'sb'-prefixed
+  // counter-parts.
+# ifdef SBCELT_COMPAT_API
+#  define  celt_mode_create      sbcelt_mode_create
+#  define  celt_decode_float     sbcelt_decode_float
+#  define  celt_mode_destroy     sbcelt_mode_destroy
+#  define  celt_mode_info        sbcelt_mode_info
+#  define  celt_encoder_create   sbcelt_encoder_create
+#  define  celt_encoder_destroy  sbcelt_encoder_destroy
+#  define  celt_encode_float     sbcelt_encode_float
+#  define  celt_encode           sbcelt_encode
+#  define  celt_encoder_ctl      sbcelt_encoder_ctl
+#  define  celt_decoder_create   sbcelt_decoder_create
+#  define  celt_decoder_destroy  sbcelt_decoder_destroy
+#  define  celt_decode_float     sbcelt_decode_float
+#  define  celt_decode           sbcelt_decode
+#  define  celt_decoder_ctl      sbcelt_decoder_ctl
+#  define  celt_strerror         sbcelt_strerror
+# endif
 #else
 # define SBCELT_FUNC(x) x
 #endif
