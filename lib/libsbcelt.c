@@ -35,15 +35,6 @@
 # define debugf(s, ...) do{} while (0)
 #endif
 
-struct CELTMode {
-};
-
-struct CELT_Encoder {
-};
-
-struct CELTDecoder {
-};
-
 static struct SBCELTWorkPage *workpage = NULL;
 static struct SBCELTDecoderPage *decpage = NULL;
 static int running = 0;
