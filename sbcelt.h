@@ -8,6 +8,10 @@
 #define SBCELT_PAGES 2
 #define SBCELT_SLOTS 40
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct SBCELTWorkPage {
 	int            slot;
 	int            ready;
@@ -51,5 +55,9 @@ int SBCELT_FUNC(celt_decode_float)(CELTDecoder *st, const unsigned char *data, i
 int SBCELT_FUNC(celt_decode)(CELTDecoder *st, const unsigned char *data, int len, celt_int16 *pcm);
 int SBCELT_FUNC(celt_decoder_ctl)(CELTDecoder * st, int request, ...);
 const char *SBCELT_FUNC(celt_strerror)(int error);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
