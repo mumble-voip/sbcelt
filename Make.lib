@@ -11,6 +11,10 @@ ifeq ($(DEBUG),1)
 CFLAGS += -DDEBUG
 endif
 
+ifeq ($(PREFIX),1)
+CFLAGS += -DSBCELT_PREFIX_API
+endif
+
 %.S.o: %.S
 	@echo "ASM  $*.S"
 	@$(CC) $(CFLAGS) -D__ASM__ -c $*.S -o $*.S.o

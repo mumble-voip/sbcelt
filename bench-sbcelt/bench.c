@@ -39,13 +39,13 @@ int main(int argc, char *argv[]) {
 	}
 	fclose(f);
 
-	CELTMode *dm = celt_mode_create(SAMPLE_RATE, SAMPLE_RATE / 100, NULL);
-        CELTDecoder *d = celt_decoder_create(dm, 1, NULL);
+	CELTMode *dm = sbcelt_mode_create(SAMPLE_RATE, SAMPLE_RATE / 100, NULL);
+        CELTDecoder *d = sbcelt_decoder_create(dm, 1, NULL);
 
 	float pcmout[FRAME_SIZE];
 	uint64_t begin = mymtime();
 	for (i = 0; i < niter; i++) {
-		if (celt_decode_float(d, buf, 127, pcmout) != CELT_OK) {
+		if (sbcelt_decode_float(d, buf, 127, pcmout) != CELT_OK) {
 			fprintf(stderr, "unable to decode...\n");
 			return 1;
 		}

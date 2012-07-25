@@ -6,8 +6,13 @@ include ../Make.conf
 
 ORIGCFLAGS := $(CFLAGS)
 CFLAGS = -Wall -Os $(ORIGCFLAGS)
+
 ifeq ($(DEBUG),1)
 CFLAGS += -DDEBUG
+endif
+
+ifeq ($(PREFIX),1)
+CFLAGS += -DSBCELT_PREFIX_API
 endif
 
 ORIGLDFLAGS := $(LDFLAGS)
