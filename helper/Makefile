@@ -26,7 +26,8 @@ SOURCES = \
 	$(CELT)/rangeenc.c \
 	$(CELT)/rate.c \
 	$(CELT)/vq.c \
-	sbcelt-helper.c \
-	seccomp-sandbox.c
+	sbcelt-helper-rw.c \
+	seccomp-sandbox.c \
+	alloc.c
 
 include ../Make.cmd

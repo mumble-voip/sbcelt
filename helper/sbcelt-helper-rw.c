@@ -44,14 +44,6 @@ static struct SBCELTDecoderPage *decpage = NULL;
 static CELTMode *modes[SBCELT_SLOTS];
 static CELTDecoder *decoders[SBCELT_SLOTS];
 
-static int futex_wake(int *futex) {
-	return syscall(SYS_futex, futex, FUTEX_WAKE, 1, NULL, NULL, 0);
-}
-
-static int futex_wait(int *futex, int val) {
-	return syscall(SYS_futex, futex, FUTEX_WAIT, val, NULL, NULL, 0);
-}
-
 int main(int argc, char *argv[]) {
 	debugf("helper running");
 
@@ -72,7 +64,7 @@ int main(int argc, char *argv[]) {
 	workpage = addr;
 	decpage = addr+PAGE_SIZE;
 
-	if (seccomp_sandbox_filter_init() == -1) {
+	if (seccomp_sandbox_init() == -1) {
 		debugf("unable to set up sandboxing");
 		return 4;
 	}
@@ -84,11 +76,9 @@ int main(int argc, char *argv[]) {
 		float *dst = &workpage->decbuf[0];
 
 		// Wait for the lib to signal us.
-		while (workpage->ready == 1) {
-			int err = futex_wait(&workpage->ready, 1);
-			if (err == 0 || err == EWOULDBLOCK) {
-				break;
-			}
+		unsigned char _;
+		if (read(0, &_, 1) == -1) {
+			_exit(1);
 		}
 
 		debugf("waiting for work...");
@@ -121,10 +111,9 @@ int main(int argc, char *argv[]) {
 
 		debugf("decoded len=%u", len);
 
-		workpage->ready = 1;
-
-		if (!workpage->busywait)
-			futex_wake(&workpage->ready);
+		if (write(1, dst, sizeof(float)*480) == -1) {
+			_exit(1);
+		}
 	}
 
 	return 5;
