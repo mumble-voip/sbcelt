@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
 		// Wait for the lib to signal us.
 		unsigned char _;
 		if (read(0, &_, 1) == -1) {
-			_exit(1);
+			return 5;
 		}
 
 		debugf("waiting for work...");
@@ -112,9 +112,9 @@ int main(int argc, char *argv[]) {
 		debugf("decoded len=%u", len);
 
 		if (write(1, dst, sizeof(float)*480) == -1) {
-			_exit(1);
+			return 6;
 		}
 	}
 
-	return 5;
+	return 7;
 }
