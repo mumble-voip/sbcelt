@@ -15,7 +15,6 @@
 #include <signal.h>
 
 #include <linux/prctl.h>
-#include <linux/futex.h>
 #include <sys/time.h>
 #include <sys/syscall.h>
 #include <sys/prctl.h>
@@ -23,6 +22,7 @@
 #include "celt.h"
 #include "../sbcelt-internal.h"
 
+#include "futex.h"
 #include "seccomp-sandbox.h"
 
 #define PAGE_SIZE   4096
@@ -44,40 +44,11 @@ static struct SBCELTDecoderPage *decpage = NULL;
 static CELTMode *modes[SBCELT_SLOTS];
 static CELTDecoder *decoders[SBCELT_SLOTS];
 
-static int futex_wake(int *futex) {
-	return syscall(SYS_futex, futex, FUTEX_WAKE, 1, NULL, NULL, 0);
-}
-
-static int futex_wait(int *futex, int val) {
-	return syscall(SYS_futex, futex, FUTEX_WAIT, val, NULL, NULL, 0);
-}
-
-int main(int argc, char *argv[]) {
-	debugf("helper running");
-
-	if (prctl(PR_SET_PDEATHSIG, SIGKILL) == -1)
-		return 1;
-
-	char shmfn[50];
-	if (snprintf(&shmfn[0], 50, "/sbcelt-%lu", (unsigned long) getppid()) < 0)
-		return 2;
-
-	int fd = shm_open(&shmfn[0], O_RDWR, 0600);
-	if (fd == -1) {
-		debugf("unable to open shm: %s (%i)", strerror(errno), errno);
-		return 3;
-	}
-
-	void *addr = mmap(NULL, SBCELT_SLOTS*PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, fd, 0);
-	workpage = addr;
-	decpage = addr+PAGE_SIZE;
-
+int SBCELT_FutexHelper() {
 	if (seccomp_sandbox_filter_init() == -1) {
-		debugf("unable to set up sandboxing");
-		return 4;
+		debugf("unable to set up filtered seccomp");
+		return -1;
 	}
-
-	debugf("workpage=%p, decpage=%p", workpage, decpage);
 
 	while (1) {
 		unsigned char *src = &workpage->encbuf[0];
@@ -85,7 +56,7 @@ int main(int argc, char *argv[]) {
 
 		// Wait for the lib to signal us.
 		while (workpage->ready == 1) {
-			int err = futex_wait(&workpage->ready, 1);
+			int err = futex_wait(&workpage->ready, 1, NULL);
 			if (err == 0 || err == EWOULDBLOCK) {
 				break;
 			}
@@ -125,6 +96,90 @@ int main(int argc, char *argv[]) {
 
 		if (!workpage->busywait)
 			futex_wake(&workpage->ready);
+	}
+
+	return -2;
+ }
+
+int SBCELT_RWHelper() {
+	if (seccomp_sandbox_init() == -1) {
+		debugf("unable to set up sandboxing");
+		return -1;
+	}
+
+	while (1) {
+		unsigned char *src = &workpage->encbuf[0];
+		float *dst = &workpage->decbuf[0];
+
+		// Wait for the lib to signal us.
+		unsigned char _;
+		if (read(0, &_, 1) == -1) {
+			return -2;
+		}
+
+		debugf("waiting for work...");
+
+		int idx = workpage->slot;
+		struct SBCELTDecoderSlot *slot = &decpage->slots[idx];
+		CELTMode *m = modes[idx];
+		CELTDecoder *d = decoders[idx];
+		if (slot->dispose && m != NULL && d != NULL) {
+			debugf("disposed of mode & decoder for slot=%i", idx);
+			celt_mode_destroy(m);
+			celt_decoder_destroy(d);
+			m = modes[idx] = celt_mode_create(SAMPLE_RATE, SAMPLE_RATE / 100, NULL);
+			d = decoders[idx] = celt_decoder_create(m, 1, NULL);
+			slot->dispose = 0;
+		}
+		if (m == NULL && d == NULL) {
+			debugf("created mode & decoder for slot=%i", idx);
+			m = modes[idx] = celt_mode_create(SAMPLE_RATE, SAMPLE_RATE / 100, NULL);
+			d = decoders[idx] = celt_decoder_create(m, 1, NULL);
+		}
+
+		debugf("got work for slot=%i", idx);
+		unsigned int len = workpage->len;
+		debugf("to decode: %p, %p, %u, %p", d, src, len, dst);
+		if (len == 0)
+			celt_decode_float(d, NULL, 0, dst);
+		else
+			celt_decode_float(d, src, len, dst);
+
+		debugf("decoded len=%u", len);
+
+		if (write(1, dst, sizeof(float)*480) == -1) {
+			return -3;
+		}
+	}
+}
+
+int main(int argc, char *argv[]) {
+	debugf("helper running");
+
+	if (prctl(PR_SET_PDEATHSIG, SIGKILL) == -1)
+		return 1;
+
+	char shmfn[50];
+	if (snprintf(&shmfn[0], 50, "/sbcelt-%lu", (unsigned long) getppid()) < 0)
+		return 2;
+
+	int fd = shm_open(&shmfn[0], O_RDWR, 0600);
+	if (fd == -1) {
+		debugf("unable to open shm: %s (%i)", strerror(errno), errno);
+		return 3;
+	}
+
+	void *addr = mmap(NULL, SBCELT_SLOTS*PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, fd, 0);
+	workpage = addr;
+	decpage = addr+PAGE_SIZE;
+
+	debugf("workpage=%p, decpage=%p", workpage, decpage);
+
+	switch (workpage->mode) {
+		case SBCELT_MODE_FUTEX:
+			return SBCELT_FutexHelper();
+		case SBCELT_MODE_RW:
+			return SBCELT_RWHelper();
 	}
 
 	return 5;

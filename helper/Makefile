@@ -1,6 +1,6 @@
 include ../Make.conf
 
-CFLAGS = -O2 -DHAVE_CONFIG_H -I. -I../celt-0.7.0/libcelt/
+CFLAGS = -O2 -DHAVE_CONFIG_H -I. -I../lib -I../celt-0.7.0/libcelt/
 LDFLAGS = -lm -lpthread -lrt
 
 CELT = ../celt-0.7.0/libcelt
@@ -26,7 +26,8 @@ SOURCES = \
 	$(CELT)/rangeenc.c \
 	$(CELT)/rate.c \
 	$(CELT)/vq.c \
-	sbcelt-helper-rw.c \
+	../lib/futex.c \
+	sbcelt-helper.c \
 	seccomp-sandbox.c \
 	alloc.c
 

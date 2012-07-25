@@ -8,10 +8,15 @@
 #define SBCELT_PAGES 2
 #define SBCELT_SLOTS 40
 
+#define SBCELT_MODE_FUTEX 1
+#define SBCELT_MODE_RW    2
+
 struct SBCELTWorkPage {
 	int            slot;
 	int            ready;
-	int            busywait;
+	unsigned char  busywait;
+	unsigned char  mode;
+	short          _;
 	unsigned int   len;
 	unsigned char  encbuf[2036];
 	float          decbuf[511];
