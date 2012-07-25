@@ -53,11 +53,11 @@ void SBCELT_Constructor() {
 	switch (mode) {
 		case SBCELT_MODE_RW:
 			debugf("SBCELT_Constructor; in mode rw");
-			sbcelt_decode_float = SBCELT_FUNC(celt_decode_float_rw);
+			SBCELT_FUNC(celt_decode_float) = SBCELT_FUNC(celt_decode_float_rw);
 			break;
 		case SBCELT_MODE_FUTEX:
 			debugf("SBCELT_Constructor; in mode futex");
-			sbcelt_decode_float = SBCELT_FUNC(celt_decode_float_futex);
+			SBCELT_FUNC(celt_decode_float) = SBCELT_FUNC(celt_decode_float_futex);
 			break;
 	}
 }
