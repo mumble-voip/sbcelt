@@ -24,16 +24,8 @@
 #include "../sbcelt-internal.h"
 #include "../sbcelt.h"
 
-#ifdef DEBUG
-# define debugf(fmt, ...) \
-	do { \
-		fprintf(stderr, "libsbcelt:%s():%u: " fmt "\n", \
-		    __FILE__, __LINE__, ## __VA_ARGS__); \
-		fflush(stderr); \
-	} while (0)
-#else
-# define debugf(s, ...) do{} while (0)
-#endif
+#include "mtime.h"
+#include "debug.h"
 
 static struct SBCELTWorkPage *workpage = NULL;
 static struct SBCELTDecoderPage *decpage = NULL;
@@ -50,21 +42,6 @@ static int futex_wake(int *futex) {
 
 static int futex_wait(int *futex, int val, struct timespec *ts) {
 	return syscall(SYS_futex, futex, FUTEX_WAIT, val, ts, NULL, 0);
-}
-
-#define USEC_PER_SEC  1000000
-#define NSEC_PER_USEC 1000
-
-// Monotonic microsecond timestamp generator.
-// The expectation is that gettimeofday() uses
-// the VDSO and/or the TSC (on modern x86) to
-// avoid system calls.
-uint64_t mtime() {
-	struct timeval tv;
-	if (gettimeofday(&tv, NULL) == -1) {
-		return 0;
-	}
-	return ((uint64_t)tv.tv_sec * USEC_PER_SEC) + (uint64_t)tv.tv_usec;
 }
 
 void *SBCELT_HelperMonitor(void *udata) {
@@ -154,41 +131,6 @@ int SBCELT_Init() {
 	return 0;
 }
 
-CELTMode *SBCELT_FUNC(celt_mode_create)(celt_int32 Fs, int frame_size, int *error) {
-	return (CELTMode *) 0x1;
-}
-
-void SBCELT_FUNC(celt_mode_destroy)(CELTMode *mode) {
-}
-
-int SBCELT_FUNC(celt_mode_info)(const CELTMode *mode, int request, celt_int32 *value) {
-	if (request == CELT_GET_BITSTREAM_VERSION) {
-		*value = 0x8000000b;
-		return CELT_OK;
-	}
-	return CELT_INTERNAL_ERROR;
-}
-
-CELTEncoder *SBCELT_FUNC(celt_encoder_create)(const CELTMode *mode, int channels, int *error) {
-	return NULL;
-}
-
-void SBCELT_FUNC(celt_encoder_destroy)(CELTEncoder *st) {
-}
-
-int SBCELT_FUNC(celt_encode_float)(CELTEncoder *st, const float *pcm, float *optional_synthesis,
-                      unsigned char *compressed, int nbCompressedBytes) {
-	return CELT_INTERNAL_ERROR;
-}
-
-int SBCELT_FUNC(celt_encode)(CELTEncoder *st, const celt_int16 *pcm, celt_int16 *optional_synthesis,
-                unsigned char *compressed, int nbCompressedBytes) {
-}
-
-int SBCELT_FUNC(celt_encoder_ctl)(CELTEncoder * st, int request, ...) {
-	return CELT_INTERNAL_ERROR;
-}
-
 CELTDecoder *SBCELT_FUNC(celt_decoder_create)(const CELTMode *mode, int channels, int *error) {
 	if (!running) {
 		SBCELT_Init();
@@ -274,16 +216,4 @@ int SBCELT_FUNC(celt_decode_float)(CELTDecoder *st, const unsigned char *data, i
 	}
 
 	return CELT_OK;
-}
-
-int SBCELT_FUNC(celt_decode)(CELTDecoder *st, const unsigned char *data, int len, celt_int16 *pcm) {
-	return CELT_INTERNAL_ERROR;
-}
-
-int SBCELT_FUNC(celt_decoder_ctl)(CELTDecoder * st, int request, ...) {
-	return CELT_INTERNAL_ERROR;
-}
-
-const char *SBCELT_FUNC(celt_strerror)(int error) {
-	return "celt: unknown error";
 }
