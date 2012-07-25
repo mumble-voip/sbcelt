@@ -12,7 +12,7 @@
 
 static unsigned char arena[ARENA_SIZE];
 static void *ptr = NULL;
-static int remain = ARENA_SIZE;
+static size_t remain = ARENA_SIZE;
 
 void *malloc(size_t size) {
 	if (ptr == NULL) {
@@ -41,7 +41,7 @@ void *calloc(size_t nmemb, size_t size) {
 }
 
 void *realloc(void *ptr, size_t size) {
-	size_t *oldsz = ptr-4;
+	size_t *oldsz = ptr-sizeof(size_t);
 	void *dst = malloc(size);
 	memcpy(dst, ptr, *oldsz);
 	return dst;
