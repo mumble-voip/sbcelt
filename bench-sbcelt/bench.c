@@ -26,7 +26,7 @@ uint64_t mymtime() {
 
 int main(int argc, char *argv[]) {
 	int i;
-	int niter = 1000;
+	int niter = 10000;
 
 	unsigned char buf[127];
 	FILE *f = fopen("test.dat", "r");

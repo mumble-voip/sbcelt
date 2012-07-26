@@ -29,7 +29,7 @@ int gentest(unsigned char *buf, int n); // gentest.c
 
 int main(int argc, char *argv[]) {
 	int i;
-	int niter = 1000;
+	int niter = 10000;
 
 	unsigned char buf[127];
 #if GEN_TESTDATA_FILE == 1
