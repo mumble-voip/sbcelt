@@ -45,11 +45,6 @@ static CELTMode *modes[SBCELT_SLOTS];
 static CELTDecoder *decoders[SBCELT_SLOTS];
 
 int SBCELT_FutexHelper() {
-	if (seccomp_sandbox_filter_init() == -1) {
-		debugf("unable to set up filtered seccomp");
-		return -1;
-	}
-
 	while (1) {
 		unsigned char *src = &workpage->encbuf[0];
 		float *dst = &workpage->decbuf[0];
@@ -102,11 +97,6 @@ int SBCELT_FutexHelper() {
  }
 
 int SBCELT_RWHelper() {
-	if (seccomp_sandbox_init() == -1) {
-		debugf("unable to set up sandboxing");
-		return -1;
-	}
-
 	while (1) {
 		unsigned char *src = &workpage->encbuf[0];
 		float *dst = &workpage->decbuf[0];
@@ -154,6 +144,15 @@ int SBCELT_RWHelper() {
 }
 
 int main(int argc, char *argv[]) {
+	if (argc >= 2 && !strcmp(argv[1], "seccomp-detect")) {
+		debugf("in seccomp-detect mode");
+		if (seccomp_sandbox_filter_init() == 0)
+			_exit(SBCELT_SANDBOX_SECCOMP_BPF);
+		if (seccomp_sandbox_strict_init() == 0)
+			_exit(SBCELT_SANDBOX_SECCOMP_STRICT);
+		_exit(SBCELT_SANDBOX_NONE);
+	}
+
 	debugf("helper running");
 
 	if (prctl(PR_SET_PDEATHSIG, SIGKILL) == -1)
@@ -174,6 +173,26 @@ int main(int argc, char *argv[]) {
 	decpage = addr+PAGE_SIZE;
 
 	debugf("workpage=%p, decpage=%p", workpage, decpage);
+
+	switch (workpage->sandbox) {
+		case SBCELT_SANDBOX_NONE:
+			// No sandboxing available.
+			break;
+		case SBCELT_SANDBOX_SECCOMP_STRICT: {
+			if (seccomp_sandbox_strict_init() == -1) {
+				debugf("unable to set up strict seccomp");
+				return 4;
+			}
+			break;
+		}
+		case SBCELT_SANDBOX_SECCOMP_BPF: {
+			if (seccomp_sandbox_filter_init() == -1) {
+				debugf("unable to set up filtered seccomp");
+				return 4;
+			}
+			break;
+		}
+	}
 
 	switch (workpage->mode) {
 		case SBCELT_MODE_FUTEX:

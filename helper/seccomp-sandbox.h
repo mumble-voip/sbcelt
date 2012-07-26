@@ -77,7 +77,7 @@ struct seccomp_data {
 #define KILL_PROCESS \
 	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL)
 
-int seccomp_sandbox_init();
+int seccomp_sandbox_strict_init();
 int seccomp_sandbox_filter_init();
 
 #endif /* _SECCOMP_BPF_H_ */

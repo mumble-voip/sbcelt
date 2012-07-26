@@ -10,7 +10,7 @@
 
 #include "seccomp-sandbox.h"
 
-int seccomp_sandbox_init(void) {
+int seccomp_sandbox_strict_init(void) {
 	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
 		return -1;
 	}

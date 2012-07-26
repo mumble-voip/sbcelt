@@ -33,33 +33,62 @@ static uint64_t lastrun = 3000; // 3 ms
 static int fdin = -1;
 static int fdout = -1;
 static pthread_t monitor;
-static int mode = 0;
 
 #define PAGE_SIZE  4096
 
 int SBCELT_FUNC(celt_decode_float_rw)(CELTDecoder *st, const unsigned char *data, int len, float *pcm);
 int SBCELT_FUNC(celt_decode_float_futex)(CELTDecoder *st, const unsigned char *data, int len, float *pcm);
-int (*SBCELT_FUNC(celt_decode_float))(CELTDecoder *, const unsigned char *, int, float *);
+int SBCELT_FUNC(celt_decode_float_picker)(CELTDecoder *st, const unsigned char *data, int len, float *pcm);
+int (*SBCELT_FUNC(celt_decode_float))(CELTDecoder *, const unsigned char *, int, float *) = SBCELT_FUNC(celt_decode_float_picker);
 
-__attribute__((constructor))
-void SBCELT_Constructor() {
-	const char *envmode = getenv("SBCELT_MODE");
-	if (envmode != NULL && !strcmp(envmode, "rw")) {
-		mode = SBCELT_MODE_RW;
-	} else {
-		mode = SBCELT_MODE_FUTEX;
+// SBCELT_CheckSeccomp checks for kernel support for
+// SECCOMP.
+//
+// On success, the function returns a valid sandbox
+// mode (see SBCELT_SANDBOX_*).
+//
+// On failure, the function returns
+//  -1 if the helper process did not execute correctly.
+//  -2 if the fork system call failed. This signals that the
+//     host system is running low on memory. This is a
+//     recoverable error, and in our case we should simply
+//     wait a bit and try again.
+int SBCELT_CheckSeccomp() {
+ 	int status, err;
+	pid_t child;
+
+	child = fork();
+	if (child == -1) {
+ 		return -2;
+	} else if (child == 0) {
+		char *helper = getenv("SBCELT_HELPER_BINARY");
+		if (helper == NULL) {
+			helper = "/usr/bin/sbcelt-helper";
+		}
+		char *const argv[] = {
+			helper,
+			"seccomp-detect",
+			NULL,
+		};
+		execv(argv[0], argv);
+		_exit(100);
 	}
 
-	switch (mode) {
-		case SBCELT_MODE_RW:
-			debugf("SBCELT_Constructor; in mode rw");
-			SBCELT_FUNC(celt_decode_float) = SBCELT_FUNC(celt_decode_float_rw);
-			break;
-		case SBCELT_MODE_FUTEX:
-			debugf("SBCELT_Constructor; in mode futex");
-			SBCELT_FUNC(celt_decode_float) = SBCELT_FUNC(celt_decode_float_futex);
-			break;
+	while ((err = waitpid(child, &status, 0)) == -1 && errno == EINTR);
+	if (err == -1) {
+		return -1;
 	}
+
+	if (!WIFEXITED(status)) {
+		return -1;
+	}
+
+	int code = WEXITSTATUS(status);
+	if (!SBCELT_SANDBOX_VALID(code)) {
+		return -1;
+	}
+
+	return code;
 }
 
 void *SBCELT_HelperMonitor(void *udata) {
@@ -98,7 +127,9 @@ void *SBCELT_HelperMonitor(void *udata) {
 		}
 
 		int status;
-		if (waitpid(child, &status, 0) == 0) {
+		int err;
+		while ((err = waitpid(child, &status, 0)) == -1 && errno == EINTR);
+		if (err == 0) {
 			if (WIFEXITED(status)) {
 				debugf("sbcelt-helper died with exit status: %i", WEXITSTATUS(status));
 			} else if (WIFSIGNALED(status)) {
@@ -180,18 +211,10 @@ int SBCELT_Init() {
 		decpage = addr+PAGE_SIZE;
 
 		workpage->busywait = sysconf(_SC_NPROCESSORS_ONLN) > 0;
-		workpage->mode = mode;
 
 		int i;
 		for (i = 0; i < SBCELT_SLOTS; i++) {
 			decpage->slots[i].available = 1;
-		}
-
-		if (mode == SBCELT_MODE_FUTEX) {
-			pthread_t tmp;
-			if (pthread_create(&monitor, NULL, SBCELT_HelperMonitor, NULL) != 0) {
-				return -1;
-			}
 		}
 	}
 
@@ -230,6 +253,51 @@ void SBCELT_FUNC(celt_decoder_destroy)(CELTDecoder *st) {
 	decpage->slots[slot].available = 1;
 
 	debugf("decoder_destroy: slot=%i", slot);
+}
+
+// celt_decode_float_picker is the initial value for the celt_decode_float function pointer.
+// It checks the available sandbox modes on the system, picks an appropriate celt_decode_float
+// implementation to use according to the available sandbox modes, and makes those choices
+// available to the helper process in the work page.
+int SBCELT_FUNC(celt_decode_float_picker)(CELTDecoder *st, const unsigned char *data, int len, float *pcm) {
+	int sandbox = SBCELT_CheckSeccomp();
+	if (sandbox == -1) {
+		return CELT_INTERNAL_ERROR;
+ 	// If the system is memory constrained, pretend that we were able
+	// decode a frame correctly, and delegate the seccomp availability
+	// check to sometime in the future.
+	} else if (sandbox == -2) {
+		memset(pcm, 0, sizeof(float)*480);
+		return CELT_OK;
+	}
+
+	debugf("picker: chose sandbox=%i", sandbox);
+	workpage->sandbox = sandbox;
+
+	// If we're without a sandbox, or is able to use seccomp
+	// with BPF filters, we can use our fast futex mode.
+	// For seccomp strict mode, we're limited to rw mode.
+	switch (workpage->sandbox) {
+		case SBCELT_SANDBOX_SECCOMP_STRICT:
+			workpage->mode = SBCELT_MODE_RW;
+			SBCELT_FUNC(celt_decode_float) = SBCELT_FUNC(celt_decode_float_rw);
+			break;
+		default:
+			workpage->mode = SBCELT_MODE_FUTEX;
+			SBCELT_FUNC(celt_decode_float) = SBCELT_FUNC(celt_decode_float_futex);
+			break;
+	}
+
+	debugf("picker: chose mode=%i", workpage->mode);
+
+	if (workpage->mode == SBCELT_MODE_FUTEX) {
+		pthread_t tmp;
+		if (pthread_create(&monitor, NULL, SBCELT_HelperMonitor, NULL) != 0) {
+			return -1;
+		}
+	}
+
+	return SBCELT_FUNC(celt_decode_float)(st, data, len, pcm);
 }
 
 int SBCELT_FUNC(celt_decode_float_futex)(CELTDecoder *st, const unsigned char *data, int len, float *pcm) {
