@@ -34,8 +34,6 @@ static int fdin = -1;
 static int fdout = -1;
 static pthread_t monitor;
 
-#define PAGE_SIZE  4096
-
 int SBCELT_FUNC(celt_decode_float_rw)(CELTDecoder *st, const unsigned char *data, int len, float *pcm);
 int SBCELT_FUNC(celt_decode_float_futex)(CELTDecoder *st, const unsigned char *data, int len, float *pcm);
 int SBCELT_FUNC(celt_decode_float_picker)(CELTDecoder *st, const unsigned char *data, int len, float *pcm);
@@ -199,16 +197,16 @@ int SBCELT_Init() {
 	if (fd == -1) {
 		return -1;
 	} else {
-		if (ftruncate(fd, SBCELT_PAGES*PAGE_SIZE) == -1) {
+		if (ftruncate(fd, SBCELT_PAGES*SBCELT_PAGE_SIZE) == -1) {
 			debugf("unable to truncate");
 			return -1;
 		}
 
-		void *addr = mmap(NULL, SBCELT_PAGES*PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, fd, 0);
-		memset(addr, 0, SBCELT_PAGES*PAGE_SIZE);
+		void *addr = mmap(NULL, SBCELT_PAGES*SBCELT_PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, fd, 0);
+		memset(addr, 0, SBCELT_PAGES*SBCELT_PAGE_SIZE);
 
 		workpage = addr;
-		decpage = addr+PAGE_SIZE;
+		decpage = addr+SBCELT_PAGE_SIZE;
 
 		workpage->busywait = sysconf(_SC_NPROCESSORS_ONLN) > 0;
 

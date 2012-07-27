@@ -6,6 +6,8 @@
 #define __SBCELT_INTERNAL_H__
 
 #define SBCELT_PAGES                   2
+#define SBCELT_PAGE_SIZE               4096
+
 #define SBCELT_SLOTS                   40
 
 #define SBCELT_MODE_FUTEX              1
@@ -19,15 +21,15 @@
 	(x >= SBCELT_SANDBOX_NONE && x <= SBCELT_SANDBOX_SECCOMP_BPF)
 
 struct SBCELTWorkPage {
-	int            slot;
-	int            ready;
-	unsigned char  busywait;
-	unsigned char  mode;
-	unsigned char  sandbox;
-	unsigned char  _;
-	unsigned int   len;
-	unsigned char  encbuf[2036];
-	float          decbuf[511];
+	int            slot;          // The slot that the helper process should work on.
+	int            ready;         // The ready state (also used for futex synchronization).
+	unsigned char  busywait;      // Determines whether libsbcelt and the helper may use busy-waiting instead of kernel synchronization.
+	unsigned char  mode;          // The current operational mode (SBCELT_MODE_FUTEX or SBCELT_MODE_RW)
+	unsigned char  sandbox;       // The sandbox technique that is used to jail the helper.
+	unsigned char  pingpong;      // Byte-sized value used for SBCELT_MODE_RW synchronization.
+	unsigned int   len;           // Specifies the length of encbuf to the helper process.
+	unsigned char  encbuf[2036];  // Holds the frame to be decoded.
+	float          decbuf[511];   // Holds the decoded PCM data.
 };
 
 struct SBCELTDecoderSlot {

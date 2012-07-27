@@ -25,7 +25,6 @@
 #include "futex.h"
 #include "seccomp-sandbox.h"
 
-#define PAGE_SIZE   4096
 #define SAMPLE_RATE 48000
 
 #ifdef DEBUG
@@ -168,9 +167,9 @@ int main(int argc, char *argv[]) {
 		return 3;
 	}
 
-	void *addr = mmap(NULL, SBCELT_SLOTS*PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, fd, 0);
+	void *addr = mmap(NULL, SBCELT_SLOTS*SBCELT_PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, fd, 0);
 	workpage = addr;
-	decpage = addr+PAGE_SIZE;
+	decpage = addr+SBCELT_PAGE_SIZE;
 
 	debugf("workpage=%p, decpage=%p", workpage, decpage);
 

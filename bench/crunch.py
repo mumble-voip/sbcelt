@@ -19,3 +19,4 @@ if __name__ == '__main__':
 	print '# results (niter=1000)'
 	print 'sbcelt  %.2f usec (%.2f stddev)' % (sbcelt.mean(), sbcelt.std())
 	print 'celt    %.2f usec (%.2f stddev)' % (celt.mean(), celt.std())
+	print 'sbcelt delta: %.2f usec' % (celt.mean() - sbcelt.mean())
