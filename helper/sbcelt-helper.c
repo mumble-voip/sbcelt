@@ -42,12 +42,44 @@ static struct SBCELTWorkPage *workpage = NULL;
 static struct SBCELTDecoderPage *decpage = NULL;
 static CELTMode *modes[SBCELT_SLOTS];
 static CELTDecoder *decoders[SBCELT_SLOTS];
+ 
+static void SBCELT_DecodeSingleFrame() {
+	unsigned char *src = &workpage->encbuf[0];
+	float *dst = &workpage->decbuf[0];
 
-int SBCELT_FutexHelper() {
+	int idx = workpage->slot;
+	struct SBCELTDecoderSlot *slot = &decpage->slots[idx];
+	CELTMode *m = modes[idx];
+	CELTDecoder *d = decoders[idx];
+
+	if (slot->dispose && m != NULL && d != NULL) {
+		debugf("disposed of mode & decoder for slot=%i", idx);
+		celt_mode_destroy(m);
+		celt_decoder_destroy(d);
+		m = modes[idx] = celt_mode_create(SAMPLE_RATE, SAMPLE_RATE / 100, NULL);
+		d = decoders[idx] = celt_decoder_create(m, 1, NULL);
+		slot->dispose = 0;
+	}
+
+	if (m == NULL && d == NULL) {
+		debugf("created mode & decoder for slot=%i", idx);
+		m = modes[idx] = celt_mode_create(SAMPLE_RATE, SAMPLE_RATE / 100, NULL);
+		d = decoders[idx] = celt_decoder_create(m, 1, NULL);
+	}
+
+	debugf("got work for slot=%i", idx);
+	unsigned int len = workpage->len;
+	debugf("to decode: %p, %p, %u, %p", d, src, len, dst);
+	if (len == 0)
+		celt_decode_float(d, NULL, 0, dst);
+	else
+		celt_decode_float(d, src, len, dst);
+
+	debugf("decoded len=%u", len);
+}
+
+static int SBCELT_FutexHelper() {
 	while (1) {
-		unsigned char *src = &workpage->encbuf[0];
-		float *dst = &workpage->decbuf[0];
-
 		// Wait for the lib to signal us.
 		while (workpage->ready == 1) {
 			int err = futex_wait(&workpage->ready, 1, NULL);
@@ -56,35 +88,7 @@ int SBCELT_FutexHelper() {
 			}
 		}
 
-		debugf("waiting for work...");
-
-		int idx = workpage->slot;
-		struct SBCELTDecoderSlot *slot = &decpage->slots[idx];
-		CELTMode *m = modes[idx];
-		CELTDecoder *d = decoders[idx];
-		if (slot->dispose && m != NULL && d != NULL) {
-			debugf("disposed of mode & decoder for slot=%i", idx);
-			celt_mode_destroy(m);
-			celt_decoder_destroy(d);
-			m = modes[idx] = celt_mode_create(SAMPLE_RATE, SAMPLE_RATE / 100, NULL);
-			d = decoders[idx] = celt_decoder_create(m, 1, NULL);
-			slot->dispose = 0;
-		}
-		if (m == NULL && d == NULL) {
-			debugf("created mode & decoder for slot=%i", idx);
-			m = modes[idx] = celt_mode_create(SAMPLE_RATE, SAMPLE_RATE / 100, NULL);
-			d = decoders[idx] = celt_decoder_create(m, 1, NULL);
-		}
-
-		debugf("got work for slot=%i", idx);
-		unsigned int len = workpage->len;
-		debugf("to decode: %p, %p, %u, %p", d, src, len, dst);
-		if (len == 0)
-			celt_decode_float(d, NULL, 0, dst);
-		else
-			celt_decode_float(d, src, len, dst);
-
-		debugf("decoded len=%u", len);
+		SBCELT_DecodeSingleFrame();
 
 		workpage->ready = 1;
 
@@ -95,45 +99,14 @@ int SBCELT_FutexHelper() {
 	return -2;
  }
 
-int SBCELT_RWHelper() {
+static int SBCELT_RWHelper() {
 	while (1) {
-		unsigned char *src = &workpage->encbuf[0];
-		float *dst = &workpage->decbuf[0];
-
 		// Wait for the lib to signal us.
 		if (read(0, &workpage->pingpong, 1) == -1) {
 			return -2;
 		}
 
-		debugf("waiting for work...");
-
-		int idx = workpage->slot;
-		struct SBCELTDecoderSlot *slot = &decpage->slots[idx];
-		CELTMode *m = modes[idx];
-		CELTDecoder *d = decoders[idx];
-		if (slot->dispose && m != NULL && d != NULL) {
-			debugf("disposed of mode & decoder for slot=%i", idx);
-			celt_mode_destroy(m);
-			celt_decoder_destroy(d);
-			m = modes[idx] = celt_mode_create(SAMPLE_RATE, SAMPLE_RATE / 100, NULL);
-			d = decoders[idx] = celt_decoder_create(m, 1, NULL);
-			slot->dispose = 0;
-		}
-		if (m == NULL && d == NULL) {
-			debugf("created mode & decoder for slot=%i", idx);
-			m = modes[idx] = celt_mode_create(SAMPLE_RATE, SAMPLE_RATE / 100, NULL);
-			d = decoders[idx] = celt_decoder_create(m, 1, NULL);
-		}
-
-		debugf("got work for slot=%i", idx);
-		unsigned int len = workpage->len;
-		debugf("to decode: %p, %p, %u, %p", d, src, len, dst);
-		if (len == 0)
-			celt_decode_float(d, NULL, 0, dst);
-		else
-			celt_decode_float(d, src, len, dst);
-
-		debugf("decoded len=%u", len);
+		SBCELT_DecodeSingleFrame();
 
 		if (write(1, &workpage->pingpong, 1) == -1) {
 			return -3;
