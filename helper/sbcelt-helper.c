@@ -101,8 +101,7 @@ int SBCELT_RWHelper() {
 		float *dst = &workpage->decbuf[0];
 
 		// Wait for the lib to signal us.
-		unsigned char _;
-		if (read(0, &_, 1) == -1) {
+		if (read(0, &workpage->pingpong, 1) == -1) {
 			return -2;
 		}
 
@@ -136,7 +135,7 @@ int SBCELT_RWHelper() {
 
 		debugf("decoded len=%u", len);
 
-		if (write(1, dst, sizeof(float)*480) == -1) {
+		if (write(1, &workpage->pingpong, 1) == -1) {
 			return -3;
 		}
 	}

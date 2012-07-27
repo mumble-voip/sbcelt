@@ -14,9 +14,13 @@ def load_results(kind):
 
 if __name__ == '__main__':
 	celt = array(load_results('celt'))
-	sbcelt = array(load_results('sbcelt'))
+	sbcelt_futex = array(load_results('sbcelt-futex'))
+	sbcelt_rw = array(load_results('sbcelt-rw'))
 
 	print '# results (niter=1000)'
-	print 'sbcelt  %.2f usec (%.2f stddev)' % (sbcelt.mean(), sbcelt.std())
-	print 'celt    %.2f usec (%.2f stddev)' % (celt.mean(), celt.std())
-	print 'sbcelt delta: %.2f usec' % (celt.mean() - sbcelt.mean())
+	print 'sbcelt-futex  %.2f usec (%.2f stddev)' % (sbcelt_futex.mean(), sbcelt_futex.std())
+	print 'sbcelt-rw     %.2f usec (%.2f stddev)' % (sbcelt_rw.mean(), sbcelt_rw.std())
+	print 'celt          %.2f usec (%.2f stddev)' % (celt.mean(), celt.std())
+	print ''
+	print 'sbcelt-futex delta: %.2f usec' % (celt.mean() - sbcelt_futex.mean())
+	print 'sbcelt-rw detlta:   %.2f usec' % (celt.mean() - sbcelt_rw.mean())

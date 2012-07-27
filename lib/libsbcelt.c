@@ -269,6 +269,15 @@ int SBCELT_FUNC(celt_decode_float_picker)(CELTDecoder *st, const unsigned char *
 		return CELT_OK;
 	}
 
+	// For benchmarking and testing purposes, it's beneficial for us
+	// to force a SECCOMP_STRICT sandbox, and therefore be force to run
+	// in the rw mode.
+	if (getenv("SBCELT_PREFER_SECCOMP_STRICT") != NULL) {
+		if (sandbox == SBCELT_SANDBOX_SECCOMP_BPF) {
+			sandbox = SBCELT_SANDBOX_SECCOMP_STRICT;
+		}
+	}
+
 	debugf("picker: chose sandbox=%i", sandbox);
 	workpage->sandbox = sandbox;
 
@@ -370,8 +379,7 @@ retry:
 	}
 
 	// signal to the helper that we're ready to work
-	unsigned char _ = slot;
-	if (write(fdout, &_, 1) == -1) {
+	if (write(fdout, &workpage->pingpong, 1) == -1) {
 		debugf("decode_float; write failed: %i", errno);
 		close(fdout);
 		fdout = -1;
@@ -379,19 +387,14 @@ retry:
 	}
 
 	// read decoded frame from helper
-	remain = sizeof(float)*480;
-	dst = pcm;
-	do {
-		ssize_t nread = read(fdin, dst, remain);
-		if (nread == -1) {
-			debugf("decode_float; read failed: %i", errno);
-			close(fdin);
-			fdin = -1;
-			goto retry;
-		}
-		dst += nread;
-		remain -= nread;
-	} while (remain > 0);
+	if (read(fdin, &workpage->pingpong, 1) == -1) {
+		debugf("decode_float; read failed: %i", errno);
+		close(fdin);
+		fdin = -1;
+		goto retry;
+	}
+
+	memcpy(pcm, workpage->decbuf, sizeof(float)*480);
 
 	return CELT_OK;
 }

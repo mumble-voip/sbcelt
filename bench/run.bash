@@ -11,10 +11,18 @@ do
 	../bench-celt/celt-bench > results/celt.${i}
 done
 
-# sbcelt lib
+# sbcelt lib (futex mode)
 for i in {0..9}
 do
-	../bench-sbcelt/sbcelt-bench > results/sbcelt.${i}
+	../bench-sbcelt/sbcelt-bench > results/sbcelt-futex.${i}
 done
+
+# sbcelt lib (rw mode)
+export SBCELT_PREFER_SECCOMP_STRICT=1
+for i in {0..9}
+do
+	../bench-sbcelt/sbcelt-bench > results/sbcelt-rw.${i}
+done
+unset SBCELT_PREFER_SECCOMP_STRICT
 
 ./crunch.py
