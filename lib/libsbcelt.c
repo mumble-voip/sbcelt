@@ -181,6 +181,9 @@ int SBCELT_RelaunchHelper() {
 		exit(1);
 	}
 
+	close(chin);
+	close(chout);
+
 	debugf("SBCELT_RelaunchHelper; relaunched helper (pid=%li)", child);
 
 	return 0;
