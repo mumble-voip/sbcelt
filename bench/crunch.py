@@ -17,7 +17,7 @@ if __name__ == '__main__':
 	sbcelt_futex = array(load_results('sbcelt-futex'))
 	sbcelt_rw = array(load_results('sbcelt-rw'))
 
-	print '# results (niter=1000)'
+	print '# results (niter=10000)'
 	print 'sbcelt-futex  %.2f usec (%.2f stddev)' % (sbcelt_futex.mean(), sbcelt_futex.std())
 	print 'sbcelt-rw     %.2f usec (%.2f stddev)' % (sbcelt_rw.mean(), sbcelt_rw.std())
 	print 'celt          %.2f usec (%.2f stddev)' % (celt.mean(), celt.std())

@@ -24,6 +24,8 @@
 #include "futex.h"
 #include "mtime.h"
 #include "debug.h"
+#include "closefrom.h"
+#include "waitpid.h"
 
 static struct SBCELTWorkPage *workpage = NULL;
 static struct SBCELTDecoderPage *decpage = NULL;
@@ -72,8 +74,7 @@ int SBCELT_CheckSeccomp() {
 		_exit(100);
 	}
 
-	while ((err = waitpid(child, &status, 0)) == -1 && errno == EINTR);
-	if (err == -1) {
+	if (xwaitpid(child, &status, 0) == -1) {
 		return -1;
 	}
 
@@ -116,6 +117,21 @@ void *SBCELT_HelperMonitor(void *udata) {
 			usleep(5*USEC_PER_SEC);
 			continue;
 		} else if (child == 0) {
+			// For SBCELT_SANDBOX_SECCOMP_BPF, it shouldn't matter
+			// whether the child inherits any file descriptors, since
+			// the only useful system call the process can make is futex(2).
+			//
+			// However, if we're running in Futex mode without a sandbox,
+			// closing the file descriptors is indeed a good idea, which
+			// is why we do it unconditionally below.
+			close(0);
+			close(1);
+#ifndef DEBUG
+			xclosefrom(2);
+#else
+			xclosefrom(3);
+#endif
+
 			char *const argv[] = {
 				helper,
 				NULL,
@@ -125,9 +141,7 @@ void *SBCELT_HelperMonitor(void *udata) {
 		}
 
 		int status;
-		int err;
-		while ((err = waitpid(child, &status, 0)) == -1 && errno == EINTR);
-		if (err == 0) {
+		if (xwaitpid(child, &status, 0) == 0) {
 			if (WIFEXITED(status)) {
 				debugf("sbcelt-helper died with exit status: %i", WEXITSTATUS(status));
 			} else if (WIFSIGNALED(status)) {
@@ -172,6 +186,16 @@ int SBCELT_RelaunchHelper() {
 			exit(100);
 		if (dup2(chout, 1) == -1)
 			exit(101);
+
+		// Make sure that all file descriptors, except
+		// those strictly needed by the helper are closed.
+		// Allow the child to inherit stderr for debugging
+		// purposes only.
+#ifndef DEBUG
+		xclosefrom(2);
+#else
+		xclosefrom(3);
+#endif
 
 		char *const argv[] = {
 			helper,
