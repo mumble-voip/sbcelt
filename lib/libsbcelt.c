@@ -429,10 +429,11 @@ int SBCELT_FUNC(celt_decode_float_futex)(CELTDecoder *st, const unsigned char *d
 	}
 
 	if (!bad) {
+		uint64_t elapsed = mtime() - begin;
 #ifdef DYNAMIC_TIMEOUT
-		lastrun = mtime() - begin;
+		lastrun = elapsed;
 #endif
-		debugf("spent %lu usecs in decode\n", lastrun);
+		debugf("spent %lu usecs in decode\n", elapsed);
 		memcpy(pcm, workpage->decbuf, sizeof(float)*480);
 	} else {
 #ifdef DYNAMIC_TIMEOUT
