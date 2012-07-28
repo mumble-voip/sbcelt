@@ -175,7 +175,8 @@ static int SBCELT_RelaunchHelper() {
 	int chin, chout;
 
 	// Reap the previous helper process.
-	if (hpid != -1) {
+	int reap = (hpid != -1);
+	if (reap) {
 		int status;
 		int retval = HANDLE_EINTR(waitpid(hpid, &status, WNOHANG));
 		if (retval == hpid) {
@@ -192,11 +193,12 @@ static int SBCELT_RelaunchHelper() {
 		hpid = -1;
 	}
 
+	// Throttle helper re-launches to around 1 per sec.
 	uint64_t now = mtime();
 	uint64_t elapsed = now - lastdead;
-	lastdead = now;
-
-	// Throttle helper re-launches to around 1 per sec.
+	if (reap) {
+		lastdead = now;
+	}
 	if (elapsed < 1*USEC_PER_SEC) {
 		return -1;
 	}
