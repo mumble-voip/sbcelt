@@ -162,6 +162,11 @@ static void *SBCELT_HelperMonitor(void *udata) {
 
 // SBCELT_RelaunchHelper restarts the helper process in a state which
 // makes it usable for SBCELT_MODE_RW.
+//
+// On success, returns 0.
+// On failure, returns
+//   -1 if the system is resource exhauted (not enough memory for fork(2),
+//      or no available file descriptor slots for pipe(2).
 static int SBCELT_RelaunchHelper() {
 	int fds[2];
 	int chin, chout;
@@ -187,7 +192,7 @@ static int SBCELT_RelaunchHelper() {
 		close(chout);
 		close(fdout);
 		close(chin);
-		return -2;
+		return -1;
 	} else if (child == 0) {
 		close(0);
 		close(1);
@@ -420,26 +425,50 @@ int SBCELT_FUNC(celt_decode_float_rw)(CELTDecoder *st, const unsigned char *data
 	memcpy(&workpage->encbuf[0], data, len);
 	workpage->len = len;
 
+	int restart = 0;
+	int attempts = 0;
 retry:
-	if (fdout == -1 || fdin == -1) {
+	// Limit ourselves to two attempts before giving the
+	// caller an empty PCM frame in its buffer.  We'll
+	// try again next time celt_decode_float() is called.
+	++attempts;
+	if (attempts >= 2) {
+		memset(pcm, 0, sizeof(float)*480);
+		return CELT_OK;
+	}
+
+	if (restart) {
+		close(fdout);
+		close(fdin);
 		if (SBCELT_RelaunchHelper() == -1) {
 			goto retry;
 		}
+		restart = 0;
 	}
 
-	// signal to the helper that we're ready to work
+	// Signal to the helper that it should begin to work.
 	if (write(fdout, &workpage->pingpong, 1) == -1) {
-		debugf("decode_float; write failed: %i", errno);
-		close(fdout);
-		fdout = -1;
+		// Only attempt to restart the helper process
+		// if our write failed with EPIPE. That's the
+		// only indication we have that our helper has
+		// died.
+		//
+		// For other errno's, simply use another attempt.
+		if (errno == EPIPE) {
+			restart = 1;
+		}
 		goto retry;
 	}
 
-	// read decoded frame from helper
+	// Wait for the helper to signal us that it has decoded
+	// the frame we passed to it.
 	if (read(fdin, &workpage->pingpong, 1) == -1) {
-		debugf("decode_float; read failed: %i", errno);
-		close(fdin);
-		fdin = -1;
+		// Restart helper in case of EPIPE. See comment
+		// inside the error condition for the write(2)
+		// call above.
+		if (errno == EPIPE) {
+			restart = 1;
+		}
 		goto retry;
 	}
 
