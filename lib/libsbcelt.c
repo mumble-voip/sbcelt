@@ -425,7 +425,10 @@ int SBCELT_FUNC(celt_decode_float_rw)(CELTDecoder *st, const unsigned char *data
 	memcpy(&workpage->encbuf[0], data, len);
 	workpage->len = len;
 
-	int restart = 0;
+	// First time the library user attempts to decode
+	// a frame, schedule a restart.  After that, restarts
+	// should only happen when the helper dies.
+	int restart = (fdin == -1 && fdout == -1);
 	int attempts = 0;
 retry:
 	// Limit ourselves to two attempts before giving the
@@ -433,6 +436,7 @@ retry:
 	// try again next time celt_decode_float() is called.
 	++attempts;
 	if (attempts >= 2) {
+		debugf("decode_float; too many failed attempts, returning empty frame");
 		memset(pcm, 0, sizeof(float)*480);
 		return CELT_OK;
 	}
@@ -471,6 +475,8 @@ retry:
 		}
 		goto retry;
 	}
+
+	debugf("decode_float; success");
 
 	memcpy(pcm, workpage->decbuf, sizeof(float)*480);
 
