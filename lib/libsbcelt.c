@@ -42,6 +42,15 @@ int SBCELT_FUNC(celt_decode_float_futex)(CELTDecoder *st, const unsigned char *d
 int SBCELT_FUNC(celt_decode_float_picker)(CELTDecoder *st, const unsigned char *data, int len, float *pcm);
 int (*SBCELT_FUNC(celt_decode_float))(CELTDecoder *, const unsigned char *, int, float *) = SBCELT_FUNC(celt_decode_float_picker);
 
+// SBELT_HelperBinary returns the path to the helper binary.
+static char *SBCELT_HelperBinary() {
+	char *helper = getenv("SBCELT_HELPER_BINARY");
+	if (helper == NULL) {
+		helper = "/usr/bin/sbcelt-helper";
+	}
+	return helper;
+}
+
 // SBCELT_CheckSeccomp checks for kernel support for
 // SECCOMP.
 //
@@ -54,7 +63,7 @@ int (*SBCELT_FUNC(celt_decode_float))(CELTDecoder *, const unsigned char *, int,
 //     host system is running low on memory. This is a
 //     recoverable error, and in our case we should simply
 //     wait a bit and try again.
-int SBCELT_CheckSeccomp() {
+static int SBCELT_CheckSeccomp() {
  	int status, err;
 	pid_t child;
 
@@ -62,12 +71,8 @@ int SBCELT_CheckSeccomp() {
 	if (child == -1) {
  		return -2;
 	} else if (child == 0) {
-		char *helper = getenv("SBCELT_HELPER_BINARY");
-		if (helper == NULL) {
-			helper = "/usr/bin/sbcelt-helper";
-		}
 		char *const argv[] = {
-			helper,
+			SBCELT_HelperBinary(),
 			"seccomp-detect",
 			NULL,
 		};
@@ -91,14 +96,13 @@ int SBCELT_CheckSeccomp() {
 	return code;
 }
 
-void *SBCELT_HelperMonitor(void *udata) {
+// SBCELT_HelperMonitor implements a monitor thread that runs
+// when libsbcelt decides to use SBCELT_MODE_FUTEX.  It is
+// response for determining whether the helper process has died,
+// and if that happens, restart it.
+static void *SBCELT_HelperMonitor(void *udata) {
 	uint64_t lastdead = 0;
 	(void) udata;
-
-	char *helper = getenv("SBCELT_HELPER_BINARY");
-	if (helper == NULL) {
-		helper = "/usr/bin/sbcelt-helper";
-	}
 
 	while (1) {
 		uint64_t now = mtime();
@@ -134,11 +138,11 @@ void *SBCELT_HelperMonitor(void *udata) {
 #endif
 
 			char *const argv[] = {
-				helper,
+				SBCELT_HelperBinary(),
 				NULL,
 			};
 			execv(argv[0], argv);
-			exit(1);
+			_exit(100);
 		}
 
 		int status;
@@ -156,12 +160,9 @@ void *SBCELT_HelperMonitor(void *udata) {
 	}
 }
 
-int SBCELT_RelaunchHelper() {
-	char *helper = getenv("SBCELT_HELPER_BINARY");
-	if (helper == NULL) {
-		helper = "/usr/bin/sbcelt-helper";
-	}
-
+// SBCELT_RelaunchHelper restarts the helper process in a state which
+// makes it usable for SBCELT_MODE_RW.
+static int SBCELT_RelaunchHelper() {
 	int fds[2];
 	int chin, chout;
 
@@ -170,8 +171,11 @@ int SBCELT_RelaunchHelper() {
 	fdin = fds[0];
 	chout = fds[1];
 
-	if (pipe(fds) == -1)
+	if (pipe(fds) == -1) {
+		close(fdin);
+		close(chout);
 		return -1;
+	}
 	fdout = fds[1];
 	chin = fds[0];
 
@@ -179,14 +183,18 @@ int SBCELT_RelaunchHelper() {
 
 	pid_t child = fork();
 	if (child == -1) {
-		// We're memory constrained... TODO
+		close(fdin);
+		close(chout);
+		close(fdout);
+		close(chin);
+		return -2;
 	} else if (child == 0) {
 		close(0);
 		close(1);
 		if (dup2(chin, 0) == -1)
-			exit(100);
+			_exit(101);
 		if (dup2(chout, 1) == -1)
-			exit(101);
+			_exit(102);
 
 		// Make sure that all file descriptors, except
 		// those strictly needed by the helper are closed.
@@ -199,11 +207,11 @@ int SBCELT_RelaunchHelper() {
 #endif
 
 		char *const argv[] = {
-			helper,
+			SBCELT_HelperBinary(),
 			NULL,
 		};
 		execv(argv[0], argv);
-		exit(1);
+		_exit(100);
 	}
 
 	close(chin);
