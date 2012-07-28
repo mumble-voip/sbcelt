@@ -26,6 +26,8 @@
 #include <sys/types.h>
 #include <dirent.h>
 
+#include "eintr.h"
+
 void xclosefrom(int lowfd) {
 	struct dirent *dent;
 	long fd, maxfd;
@@ -36,14 +38,14 @@ void xclosefrom(int lowfd) {
 		while ((dent = readdir(dirp)) != NULL) {
 			fd = strtol(dent->d_name, &endp, 10);
 			if (dent->d_name != endp && *endp == '\0' && fd >= 0 && fd < INT_MAX && fd >= lowfd && fd != dirfd(dirp)) {
-				close((int)fd);
+				HANDLE_EINTR(close((int)fd));
 			}
 		}
-		closedir(dirp);
+		HANDLE_EINTR(closedir(dirp));
 	} else {
 		maxfd = sysconf(_SC_OPEN_MAX);
 		for (fd = lowfd; fd < maxfd; fd++) {
-			close((int)fd);
+			HANDLE_EINTR(close((int)fd));
 		}
 	}
 }

@@ -22,11 +22,11 @@
 #include "../sbcelt-internal.h"
 #include "../sbcelt.h"
 
+#include "eintr.h"
 #include "futex.h"
 #include "mtime.h"
 #include "debug.h"
 #include "closefrom.h"
-#include "waitpid.h"
 
 static struct SBCELTWorkPage *workpage = NULL;
 static struct SBCELTDecoderPage *decpage = NULL;
@@ -80,7 +80,7 @@ static int SBCELT_CheckSeccomp() {
 		_exit(100);
 	}
 
-	if (xwaitpid(child, &status, 0) == -1) {
+	if (HANDLE_EINTR(waitpid(child, &status, 0)) == -1) {
 		return -1;
 	}
 
@@ -129,8 +129,8 @@ static void *SBCELT_HelperMonitor(void *udata) {
 			// However, if we're running in Futex mode without a sandbox,
 			// closing the file descriptors is indeed a good idea, which
 			// is why we do it unconditionally below.
-			close(0);
-			close(1);
+			HANDLE_EINTR(close(0));
+			HANDLE_EINTR(close(1));
 #ifndef DEBUG
 			xclosefrom(2);
 #else
@@ -146,7 +146,7 @@ static void *SBCELT_HelperMonitor(void *udata) {
 		}
 
 		int status;
-		if (xwaitpid(child, &status, 0) == 0) {
+		if (HANDLE_EINTR(waitpid(child, &status, 0)) == 0) {
 			if (WIFEXITED(status)) {
 				debugf("sbcelt-helper died with exit status: %i", WEXITSTATUS(status));
 			} else if (WIFSIGNALED(status)) {
@@ -177,8 +177,8 @@ static int SBCELT_RelaunchHelper() {
 	chout = fds[1];
 
 	if (pipe(fds) == -1) {
-		close(fdin);
-		close(chout);
+		HANDLE_EINTR(close(fdin));
+		HANDLE_EINTR(close(chout));
 		return -1;
 	}
 	fdout = fds[1];
@@ -188,17 +188,17 @@ static int SBCELT_RelaunchHelper() {
 
 	pid_t child = fork();
 	if (child == -1) {
-		close(fdin);
-		close(chout);
-		close(fdout);
-		close(chin);
+		HANDLE_EINTR(close(fdin));
+		HANDLE_EINTR(close(chout));
+		HANDLE_EINTR((fdout));
+		HANDLE_EINTR(close(chin));
 		return -1;
 	} else if (child == 0) {
-		close(0);
-		close(1);
-		if (dup2(chin, 0) == -1)
+		HANDLE_EINTR(close(0));
+		HANDLE_EINTR(close(1));
+		if (HANDLE_EINTR(dup2(chin, 0)) == -1)
 			_exit(101);
-		if (dup2(chout, 1) == -1)
+		if (HANDLE_EINTR(dup2(chout, 1)) == -1)
 			_exit(102);
 
 		// Make sure that all file descriptors, except
@@ -219,8 +219,8 @@ static int SBCELT_RelaunchHelper() {
 		_exit(100);
 	}
 
-	close(chin);
-	close(chout);
+	HANDLE_EINTR(close(chin));
+	HANDLE_EINTR(close(chout));
 
 	debugf("SBCELT_RelaunchHelper; relaunched helper (pid=%li)", child);
 
@@ -438,8 +438,8 @@ retry:
 	}
 
 	if (restart) {
-		close(fdout);
-		close(fdin);
+		HANDLE_EINTR(close(fdout));
+		HANDLE_EINTR(close(fdin));
 		if (SBCELT_RelaunchHelper() == -1) {
 			goto retry;
 		}
@@ -447,7 +447,7 @@ retry:
 	}
 
 	// Signal to the helper that it should begin to work.
-	if (write(fdout, &workpage->pingpong, 1) == -1) {
+	if (HANDLE_EINTR(write(fdout, &workpage->pingpong, 1)) == -1) {
 		// Only attempt to restart the helper process
 		// if our write failed with EPIPE. That's the
 		// only indication we have that our helper has
@@ -462,7 +462,7 @@ retry:
 
 	// Wait for the helper to signal us that it has decoded
 	// the frame we passed to it.
-	if (read(fdin, &workpage->pingpong, 1) == -1) {
+	if (HANDLE_EINTR(read(fdin, &workpage->pingpong, 1)) == -1) {
 		// Restart helper in case of EPIPE. See comment
 		// inside the error condition for the write(2)
 		// call above.

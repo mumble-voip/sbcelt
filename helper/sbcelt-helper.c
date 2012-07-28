@@ -22,6 +22,7 @@
 #include "celt.h"
 #include "../sbcelt-internal.h"
 
+#include "eintr.h"
 #include "futex.h"
 #include "seccomp-sandbox.h"
 
@@ -102,13 +103,13 @@ static int SBCELT_FutexHelper() {
 static int SBCELT_RWHelper() {
 	while (1) {
 		// Wait for the lib to signal us.
-		if (read(0, &workpage->pingpong, 1) == -1) {
+		if (HANDLE_EINTR(read(0, &workpage->pingpong, 1)) == -1) {
 			return -2;
 		}
 
 		SBCELT_DecodeSingleFrame();
 
-		if (write(1, &workpage->pingpong, 1) == -1) {
+		if (HANDLE_EINTR(write(1, &workpage->pingpong, 1)) == -1) {
 			return -3;
 		}
 	}
