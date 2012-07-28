@@ -175,7 +175,10 @@ static int SBCELT_RelaunchHelper() {
 	int fds[2];
 	int chin, chout;
 
-	// Reap the previous helper process.
+	// Best-effort attempt to reap the previous helper process.
+	// Perhaps the process libsbcelt is hosted in is ignoring
+	// SIGCHLD, in which case the kernel will automatically reap
+	// the children, making this call superfluous.
 	int reap = (hpid != -1);
 	if (reap) {
 		int status;
@@ -186,8 +189,8 @@ static int SBCELT_RelaunchHelper() {
 			} else if (WIFSIGNALED(status)) {
 				debugf("sbcelt-helper died with signal: %i", WTERMSIG(status));
 			}
-		} else if ((retval == -1 && errno == EINVAL) || retval == 0) {
-			fprintf(stderr, "libsbcelt: internal error\n");
+		} else if (retval == -1 && errno == EINVAL) {
+			fprintf(stderr, "libsbcelt: waitpid() failed with EINVAL; internal error!\n");
 			fflush(stderr);
 			exit(1);
 		}
