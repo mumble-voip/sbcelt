@@ -15,6 +15,13 @@ ifeq ($(PREFIX),1)
 CFLAGS += -DSBCELT_PREFIX_API
 endif
 
+LIBDIR = /usr/lib
+
+# During development, this will suffice.
+ifeq ($(shell uname -s),Linux)
+LIBDIR = /usr/lib/x86_64-linux-gnu
+endif
+
 %.S.o: %.S
 	@echo "ASM  $*.S"
 	@$(CC) $(CFLAGS) -D__ASM__ -c $*.S -o $*.S.o
@@ -32,4 +39,4 @@ clean:
 
 install:
 	@echo "INSTALL  ${TARGET}"
-	@cp $(TARGET) /usr/lib/x86_64-linux-gnu/$(TARGET)
+	@cp $(TARGET) $(LIBDIR)/$(TARGET)

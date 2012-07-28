@@ -1,7 +1,7 @@
 include ../Make.conf
 
-CFLAGS = -O2 -DHAVE_CONFIG_H -I. -I../lib -I../celt-0.7.0/libcelt/
-LDFLAGS = -lm -lpthread -lrt
+CFLAGS = -O2 -DHAVE_CONFIG_H -I. -I.. -I../lib -I../celt-0.7.0/libcelt/
+LDFLAGS = -lm -lpthread
 
 CELT = ../celt-0.7.0/libcelt
 TARGET = sbcelt-helper
@@ -26,9 +26,22 @@ SOURCES = \
 	$(CELT)/rangeenc.c \
 	$(CELT)/rate.c \
 	$(CELT)/vq.c \
-	../lib/futex.c \
 	sbcelt-helper.c \
-	seccomp-sandbox.c \
 	alloc.c
+
+ifeq ($(shell uname -s),Linux)
+SOURCES += \
+	../lib/futex-linux.c \
+	seccomp-sandbox.c \
+	sbcelt-sandbox-linux.c
+LDFLAGS += -lrt
+endif
+
+ifeq ($(shell uname -s),Darwin)
+CFLAGS += -Wno-deprecated-declarations
+SOURCES += \
+	../lib/futex-stub.c \
+	sbcelt-sandbox-darwin.c
+endif
 
 include ../Make.cmd

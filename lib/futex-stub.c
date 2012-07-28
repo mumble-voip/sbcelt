@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license
 // that can be found in the LICENSE-file.
 
-#ifndef __MTIME_H__
-#define __MTIME_H__
+#include <sys/time.h>
 
-#define USEC_PER_SEC  1000000
-#define NSEC_PER_USEC 1000
+#include "futex.h"
 
-uint64_t mtime();
+int futex_wake(int *futex) {
+	return -1;
+}
 
-#endif
-
+int futex_wait(int *futex, int val, struct timespec *ts) {
+	return -1;
+}

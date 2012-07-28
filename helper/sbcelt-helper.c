@@ -14,17 +14,20 @@
 #include <string.h>
 #include <signal.h>
 
-#include <linux/prctl.h>
 #include <sys/time.h>
 #include <sys/syscall.h>
-#include <sys/prctl.h>
+
+#ifdef __linux__
+# include <linux/prctl.h>
+# include <sys/prctl.h>
+#endif
 
 #include "celt.h"
 #include "../sbcelt-internal.h"
 
 #include "eintr.h"
 #include "futex.h"
-#include "seccomp-sandbox.h"
+#include "sbcelt-sandbox.h"
 
 #define SAMPLE_RATE 48000
 
@@ -116,19 +119,25 @@ static int SBCELT_RWHelper() {
 }
 
 int main(int argc, char *argv[]) {
-	if (argc >= 2 && !strcmp(argv[1], "seccomp-detect")) {
+	if (argc >= 2 && !strcmp(argv[1], "detect")) {
 		debugf("in seccomp-detect mode");
-		if (seccomp_sandbox_filter_init() == 0)
+		if (SBCELT_EnterSandbox(SBCELT_SANDBOX_SEATBELT) == 0)
+			_exit(SBCELT_SANDBOX_SEATBELT);
+		if (SBCELT_EnterSandbox(SBCELT_SANDBOX_SECCOMP_BPF) == 0)
 			_exit(SBCELT_SANDBOX_SECCOMP_BPF);
-		if (seccomp_sandbox_strict_init() == 0)
+		if (SBCELT_EnterSandbox(SBCELT_SANDBOX_SECCOMP_STRICT) == 0)
 			_exit(SBCELT_SANDBOX_SECCOMP_STRICT);
 		_exit(SBCELT_SANDBOX_NONE);
 	}
 
 	debugf("helper running");
 
+	// For SBCELT_MODE_FUTEX it's very beneficial for us
+	// to be SIGKILL'd in case of parent death.
+#ifdef __linux__
 	if (prctl(PR_SET_PDEATHSIG, SIGKILL) == -1)
 		return 1;
+#endif
 
 	char shmfn[50];
 	if (snprintf(&shmfn[0], 50, "/sbcelt-%lu", (unsigned long) getppid()) < 0)
@@ -140,31 +149,18 @@ int main(int argc, char *argv[]) {
 		return 3;
 	}
 
-	void *addr = mmap(NULL, SBCELT_SLOTS*SBCELT_PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, fd, 0);
+	void *addr = mmap(NULL, SBCELT_PAGES*SBCELT_PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, fd, 0);
+	if (addr == MAP_FAILED) {
+		debugf("unable to mmap: %s (%i)", strerror(errno), errno);
+		return 5;
+	}
 	workpage = addr;
 	decpage = addr+SBCELT_PAGE_SIZE;
 
 	debugf("workpage=%p, decpage=%p", workpage, decpage);
 
-	switch (workpage->sandbox) {
-		case SBCELT_SANDBOX_NONE:
-			// No sandboxing available.
-			break;
-		case SBCELT_SANDBOX_SECCOMP_STRICT: {
-			if (seccomp_sandbox_strict_init() == -1) {
-				debugf("unable to set up strict seccomp");
-				return 4;
-			}
-			break;
-		}
-		case SBCELT_SANDBOX_SECCOMP_BPF: {
-			if (seccomp_sandbox_filter_init() == -1) {
-				debugf("unable to set up filtered seccomp");
-				return 4;
-			}
-			break;
-		}
-	}
+	if (SBCELT_EnterSandbox(workpage->sandbox) == -1)
+		return 6;
 
 	switch (workpage->mode) {
 		case SBCELT_MODE_FUTEX:
@@ -173,5 +169,5 @@ int main(int argc, char *argv[]) {
 			return SBCELT_RWHelper();
 	}
 
-	return 5;
+	return 7;
 }

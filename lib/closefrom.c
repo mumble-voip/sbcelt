@@ -28,24 +28,30 @@
 
 #include "eintr.h"
 
+#if defined(__APPLE__) || defined(__FreeBSD__)
+# define FD_DIR "/dev/fd"
+#else
+# define FD_DIR "/proc/self/fd"
+#endif
+
 void xclosefrom(int lowfd) {
 	struct dirent *dent;
 	long fd, maxfd;
 	char *endp;
 	DIR *dirp;
 
-	if (dirp = opendir("/proc/self/fd")) {
+	if ((dirp = opendir(FD_DIR))) {
 		while ((dent = readdir(dirp)) != NULL) {
 			fd = strtol(dent->d_name, &endp, 10);
 			if (dent->d_name != endp && *endp == '\0' && fd >= 0 && fd < INT_MAX && fd >= lowfd && fd != dirfd(dirp)) {
-				HANDLE_EINTR(close((int)fd));
+				(void) HANDLE_EINTR(close((int)fd));
 			}
 		}
-		HANDLE_EINTR(closedir(dirp));
+		(void) HANDLE_EINTR(closedir(dirp));
 	} else {
 		maxfd = sysconf(_SC_OPEN_MAX);
 		for (fd = lowfd; fd < maxfd; fd++) {
-			HANDLE_EINTR(close((int)fd));
+			(void) HANDLE_EINTR(close((int)fd));
 		}
 	}
 }

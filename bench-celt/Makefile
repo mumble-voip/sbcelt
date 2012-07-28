@@ -1,7 +1,7 @@
 include ../Make.conf
 
 CFLAGS = -O2 -DHAVE_CONFIG_H -I. -I../celt-0.7.0/libcelt/ -I../helper
-LDFLAGS = -lm -lpthread -lrt
+LDFLAGS = -lm
 
 CELT = ../celt-0.7.0/libcelt
 TARGET = celt-bench

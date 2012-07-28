@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <pthread.h>
 
 #include "celt.h"
 #include "../sbcelt-internal.h"
@@ -75,7 +76,7 @@ static int SBCELT_CheckSeccomp() {
 	} else if (child == 0) {
 		char *const argv[] = {
 			SBCELT_HelperBinary(),
-			"seccomp-detect",
+			"detect",
 			NULL,
 		};
 		execv(argv[0], argv);
@@ -130,8 +131,8 @@ static void *SBCELT_HelperMonitor(void *udata) {
 			// However, if we're running in Futex mode without a sandbox,
 			// closing the file descriptors is indeed a good idea, which
 			// is why we do it unconditionally below.
-			HANDLE_EINTR(close(0));
-			HANDLE_EINTR(close(1));
+			(void) HANDLE_EINTR(close(0));
+			(void) HANDLE_EINTR(close(1));
 #ifndef DEBUG
 			xclosefrom(2);
 #else
@@ -209,8 +210,8 @@ static int SBCELT_RelaunchHelper() {
 	chout = fds[1];
 
 	if (pipe(fds) == -1) {
-		HANDLE_EINTR(close(fdin));
-		HANDLE_EINTR(close(chout));
+		(void) HANDLE_EINTR(close(fdin));
+		(void) HANDLE_EINTR(close(chout));
 		return -1;
 	}
 	fdout = fds[1];
@@ -220,14 +221,14 @@ static int SBCELT_RelaunchHelper() {
 
 	pid_t child = fork();
 	if (child == -1) {
-		HANDLE_EINTR(close(fdin));
-		HANDLE_EINTR(close(chout));
-		HANDLE_EINTR((fdout));
-		HANDLE_EINTR(close(chin));
+		(void) HANDLE_EINTR(close(fdin));
+		(void) HANDLE_EINTR(close(chout));
+		(void) HANDLE_EINTR(close(fdout));
+		(void) HANDLE_EINTR(close(chin));
 		return -1;
 	} else if (child == 0) {
-		HANDLE_EINTR(close(0));
-		HANDLE_EINTR(close(1));
+		(void) HANDLE_EINTR(close(0));
+		(void) HANDLE_EINTR(close(1));
 		if (HANDLE_EINTR(dup2(chin, 0)) == -1)
 			_exit(101);
 		if (HANDLE_EINTR(dup2(chout, 1)) == -1)
@@ -251,8 +252,8 @@ static int SBCELT_RelaunchHelper() {
 		_exit(100);
 	}
 
-	HANDLE_EINTR(close(chin));
-	HANDLE_EINTR(close(chout));
+	(void) HANDLE_EINTR(close(chin));
+	(void) HANDLE_EINTR(close(chout));
 
 	hpid = child;
 	debugf("SBCELT_RelaunchHelper; relaunched helper (pid=%li)", child);
@@ -272,11 +273,15 @@ int SBCELT_Init() {
 		return -1;
 	} else {
 		if (ftruncate(fd, SBCELT_PAGES*SBCELT_PAGE_SIZE) == -1) {
-			debugf("unable to truncate");
+			debugf("unable to truncate: %s (%i)", strerror(errno), errno);
 			return -1;
 		}
 
 		void *addr = mmap(NULL, SBCELT_PAGES*SBCELT_PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, fd, 0);
+		if (addr == MAP_FAILED) {
+			debugf("unable to mmap: %s (%i)", strerror(errno), errno);
+			return -1;
+		}
 		memset(addr, 0, SBCELT_PAGES*SBCELT_PAGE_SIZE);
 
 		workpage = addr;
@@ -359,6 +364,10 @@ int SBCELT_FUNC(celt_decode_float_picker)(CELTDecoder *st, const unsigned char *
 	// with BPF filters, we can use our fast futex mode.
 	// For seccomp strict mode, we're limited to rw mode.
 	switch (workpage->sandbox) {
+		case SBCELT_SANDBOX_SEATBELT:
+			workpage->mode = SBCELT_MODE_RW;
+			SBCELT_FUNC(celt_decode_float) = SBCELT_FUNC(celt_decode_float_rw);
+			break;
 		case SBCELT_SANDBOX_SECCOMP_STRICT:
 			workpage->mode = SBCELT_MODE_RW;
 			SBCELT_FUNC(celt_decode_float) = SBCELT_FUNC(celt_decode_float_rw);
@@ -473,8 +482,8 @@ retry:
 	}
 
 	if (restart) {
-		HANDLE_EINTR(close(fdout));
-		HANDLE_EINTR(close(fdin));
+		(void) HANDLE_EINTR(close(fdout));
+		(void) HANDLE_EINTR(close(fdin));
 		if (SBCELT_RelaunchHelper() == -1) {
 			goto retry;
 		}

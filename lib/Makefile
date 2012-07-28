@@ -6,7 +6,12 @@ SOURCES = \
 	libsbcelt.c \
 	closefrom.c \
 	mtime.c \
-	futex.c \
 	stub.c
+
+ifeq ($(shell uname -s),Linux)
+SOURCES += futex-linux.c
+else
+SOURCES += futex-stub.c
+endif
 
 include ../Make.lib

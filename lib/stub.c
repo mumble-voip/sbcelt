@@ -37,6 +37,7 @@ int SBCELT_FUNC(celt_encode_float)(CELTEncoder *st, const float *pcm, float *opt
 
 int SBCELT_FUNC(celt_encode)(CELTEncoder *st, const celt_int16 *pcm, celt_int16 *optional_synthesis,
                 unsigned char *compressed, int nbCompressedBytes) {
+	return CELT_INTERNAL_ERROR;
 }
 
 int SBCELT_FUNC(celt_encoder_ctl)(CELTEncoder * st, int request, ...) {
