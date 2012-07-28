@@ -16,6 +16,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #include "celt.h"
 #include "../sbcelt-internal.h"
@@ -324,10 +325,23 @@ int SBCELT_FUNC(celt_decode_float_picker)(CELTDecoder *st, const unsigned char *
 
 	debugf("picker: chose mode=%i", workpage->mode);
 
-	if (workpage->mode == SBCELT_MODE_FUTEX) {
+	if (workpage->mode == SBCELT_MODE_RW) {
+#ifndef SBCELT_NO_SIGNAL_MUCKING
+		struct sigaction sa = {
+			.sa_handler = SIG_IGN,
+			.sa_sigaction = NULL,
+			.sa_mask = 0,
+			.sa_flags = 0,
+			.sa_restorer = NULL,
+		};
+		if (sigaction(SIGPIPE, &sa, 0) == -1) {
+			return CELT_INTERNAL_ERROR;
+		}
+#endif
+	} else if (workpage->mode == SBCELT_MODE_FUTEX) {
 		pthread_t tmp;
 		if (pthread_create(&monitor, NULL, SBCELT_HelperMonitor, NULL) != 0) {
-			return -1;
+			return CELT_INTERNAL_ERROR;
 		}
 	}
 
