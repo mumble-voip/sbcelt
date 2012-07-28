@@ -35,6 +35,7 @@ static int lastslot = 0;
 static uint64_t lastrun = 3000; // 3 ms
 static int fdin = -1;
 static int fdout = -1;
+static pid_t hpid = -1;
 static pthread_t monitor;
 
 int SBCELT_FUNC(celt_decode_float_rw)(CELTDecoder *st, const unsigned char *data, int len, float *pcm);
@@ -146,14 +147,15 @@ static void *SBCELT_HelperMonitor(void *udata) {
 		}
 
 		int status;
-		if (HANDLE_EINTR(waitpid(child, &status, 0)) == 0) {
+		int retval = HANDLE_EINTR(waitpid(child, &status, 0));
+		if (retval == child) {
 			if (WIFEXITED(status)) {
 				debugf("sbcelt-helper died with exit status: %i", WEXITSTATUS(status));
 			} else if (WIFSIGNALED(status)) {
 				debugf("sbcelt-helper died with signal: %i", WTERMSIG(status));
 			}
-		} else if (errno == EINVAL) {
-			fprintf(stderr, "libsbcelt: waitpid() failed with EINVAL.\n");
+		} else if (retval == -1 && errno == EINVAL) {
+			fprintf(stderr, "libsbcelt: waitpid() failed with EINVAL; internal error!\n");
 			fflush(stderr);
 			exit(1);
 		}
@@ -170,6 +172,23 @@ static void *SBCELT_HelperMonitor(void *udata) {
 static int SBCELT_RelaunchHelper() {
 	int fds[2];
 	int chin, chout;
+
+	// Reap the previous helper process.
+	if (hpid != -1) {
+		int status;
+		int retval = HANDLE_EINTR(waitpid(hpid, &status, WNOHANG));
+		if (retval == hpid) {
+			if (WIFEXITED(status)) {
+				debugf("sbcelt-helper died with exit status: %i", WEXITSTATUS(status));
+			} else if (WIFSIGNALED(status)) {
+				debugf("sbcelt-helper died with signal: %i", WTERMSIG(status));
+			}
+		} else if ((retval == -1 && errno == EINVAL) || retval == 0) {
+			fprintf(stderr, "libsbcelt: internal error\n");
+			fflush(stderr);
+			exit(1);
+		}
+	}
 
 	if (pipe(fds) == -1)
 		return -1;
@@ -222,6 +241,7 @@ static int SBCELT_RelaunchHelper() {
 	HANDLE_EINTR(close(chin));
 	HANDLE_EINTR(close(chout));
 
+	hpid = child;
 	debugf("SBCELT_RelaunchHelper; relaunched helper (pid=%li)", child);
 
 	return 0;
@@ -340,14 +360,11 @@ int SBCELT_FUNC(celt_decode_float_picker)(CELTDecoder *st, const unsigned char *
 
 	if (workpage->mode == SBCELT_MODE_RW) {
 #ifndef SBCELT_NO_SIGNAL_MUCKING
-		struct sigaction sa = {
-			.sa_handler = SIG_IGN,
-			.sa_sigaction = NULL,
-			.sa_mask = 0,
-			.sa_flags = 0,
-			.sa_restorer = NULL,
-		};
-		if (sigaction(SIGPIPE, &sa, 0) == -1) {
+		struct sigaction sa;
+		memset(&sa, 0, sizeof(sa));
+		sa.sa_handler = SIG_IGN;
+		sigemptyset(&sa.sa_mask);
+		if (sigaction(SIGPIPE, &sa, NULL) == -1) {
 			return CELT_INTERNAL_ERROR;
 		}
 #endif
@@ -428,14 +445,14 @@ int SBCELT_FUNC(celt_decode_float_rw)(CELTDecoder *st, const unsigned char *data
 	// First time the library user attempts to decode
 	// a frame, schedule a restart.  After that, restarts
 	// should only happen when the helper dies.
-	int restart = (fdin == -1 && fdout == -1);
+	int restart = (hpid == -1);
 	int attempts = 0;
 retry:
 	// Limit ourselves to two attempts before giving the
 	// caller an empty PCM frame in its buffer.  We'll
 	// try again next time celt_decode_float() is called.
 	++attempts;
-	if (attempts >= 2) {
+	if (attempts > 2) {
 		debugf("decode_float; too many failed attempts, returning empty frame");
 		memset(pcm, 0, sizeof(float)*480);
 		return CELT_OK;
