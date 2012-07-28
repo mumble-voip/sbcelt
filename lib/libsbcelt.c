@@ -36,6 +36,7 @@ static uint64_t lastrun = 3000; // 3 ms
 static int fdin = -1;
 static int fdout = -1;
 static pid_t hpid = -1;
+static uint64_t lastdead = 0;
 static pthread_t monitor;
 
 int SBCELT_FUNC(celt_decode_float_rw)(CELTDecoder *st, const unsigned char *data, int len, float *pcm);
@@ -102,7 +103,6 @@ static int SBCELT_CheckSeccomp() {
 // response for determining whether the helper process has died,
 // and if that happens, restart it.
 static void *SBCELT_HelperMonitor(void *udata) {
-	uint64_t lastdead = 0;
 	(void) udata;
 
 	while (1) {
@@ -110,7 +110,7 @@ static void *SBCELT_HelperMonitor(void *udata) {
 		uint64_t elapsed = now - lastdead;
 		lastdead = now;
 
-		// Throttle child deaths to around 1 per sec.
+		// Throttle helper re-launches to around 1 per sec.
 		if (elapsed < 1*USEC_PER_SEC) {
 			usleep(1*USEC_PER_SEC);
 		}
@@ -168,7 +168,8 @@ static void *SBCELT_HelperMonitor(void *udata) {
 // On success, returns 0.
 // On failure, returns
 //   -1 if the system is resource exhauted (not enough memory for fork(2),
-//      or no available file descriptor slots for pipe(2).
+//      no available file descriptor slots for pipe(2), or because of
+//      throttling of helper process launches).
 static int SBCELT_RelaunchHelper() {
 	int fds[2];
 	int chin, chout;
@@ -188,6 +189,16 @@ static int SBCELT_RelaunchHelper() {
 			fflush(stderr);
 			exit(1);
 		}
+		hpid = -1;
+	}
+
+	uint64_t now = mtime();
+	uint64_t elapsed = now - lastdead;
+	lastdead = now;
+
+	// Throttle helper re-launches to around 1 per sec.
+	if (elapsed < 1*USEC_PER_SEC) {
+		return -1;
 	}
 
 	if (pipe(fds) == -1)
