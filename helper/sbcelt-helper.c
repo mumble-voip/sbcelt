@@ -70,10 +70,11 @@ static void SBCELT_DecodeSingleFrame() {
 	debugf("got work for slot=%i", idx);
 	unsigned int len = workpage->len;
 	debugf("to decode: %p, %p, %u, %p", d, src, len, dst);
-	if (len == 0)
+	if (len == 0) {
 		celt_decode_float(d, NULL, 0, dst);
-	else
+	} else {
 		celt_decode_float(d, src, len, dst);
+	}
 
 	debugf("decoded len=%u", len);
 }
@@ -92,8 +93,9 @@ static int SBCELT_FutexHelper() {
 
 		workpage->ready = 1;
 
-		if (!workpage->busywait)
+		if (!workpage->busywait) {
 			futex_wake(&workpage->ready);
+		}
 	}
 
 	return -2;
@@ -117,25 +119,31 @@ static int SBCELT_RWHelper() {
 int main(int argc, char *argv[]) {
 	if (argc >= 2 && !strcmp(argv[1], "detect")) {
 		debugf("in seccomp-detect mode");
-		if (SBCELT_EnterSandbox(SBCELT_SANDBOX_CAPSICUM) == 0)
+		if (SBCELT_EnterSandbox(SBCELT_SANDBOX_CAPSICUM) == 0) {
 			_exit(SBCELT_SANDBOX_CAPSICUM);
-		if (SBCELT_EnterSandbox(SBCELT_SANDBOX_SEATBELT) == 0)
+		}
+		if (SBCELT_EnterSandbox(SBCELT_SANDBOX_SEATBELT) == 0) {
 			_exit(SBCELT_SANDBOX_SEATBELT);
-		if (SBCELT_EnterSandbox(SBCELT_SANDBOX_SECCOMP_BPF) == 0)
+		}
+		if (SBCELT_EnterSandbox(SBCELT_SANDBOX_SECCOMP_BPF) == 0) {
 			_exit(SBCELT_SANDBOX_SECCOMP_BPF);
-		if (SBCELT_EnterSandbox(SBCELT_SANDBOX_SECCOMP_STRICT) == 0)
+		}
+		if (SBCELT_EnterSandbox(SBCELT_SANDBOX_SECCOMP_STRICT) == 0) {
 			_exit(SBCELT_SANDBOX_SECCOMP_STRICT);
+		}
 		_exit(SBCELT_SANDBOX_NONE);
 	}
 
 	debugf("helper running");
 
-	if (pdeath() == -1)
+	if (pdeath() == -1) {
 		return 1;
+	}
 
 	char shmfn[50];
-	if (snprintf(&shmfn[0], 50, "/sbcelt-%lu", (unsigned long) getppid()) < 0)
+	if (snprintf(&shmfn[0], 50, "/sbcelt-%lu", (unsigned long) getppid()) < 0) {
 		return 2;
+	}
 
 	int fd = shm_open(&shmfn[0], O_RDWR, 0600);
 	if (fd == -1) {
@@ -153,8 +161,9 @@ int main(int argc, char *argv[]) {
 
 	debugf("workpage=%p, decpage=%p", workpage, decpage);
 
-	if (SBCELT_EnterSandbox(workpage->sandbox) == -1)
+	if (SBCELT_EnterSandbox(workpage->sandbox) == -1) {
 		return 6;
+	}
 
 	switch (workpage->mode) {
 		case SBCELT_MODE_FUTEX:
