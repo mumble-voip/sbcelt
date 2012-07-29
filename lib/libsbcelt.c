@@ -18,6 +18,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <pthread.h>
+#include <sys/wait.h>
 
 #include "celt.h"
 #include "../sbcelt-internal.h"
@@ -376,8 +377,13 @@ int SBCELT_FUNC(celt_decode_float_picker)(CELTDecoder *st, const unsigned char *
 			SBCELT_FUNC(celt_decode_float) = SBCELT_FUNC(celt_decode_float_rw);
 			break;
 		default:
-			workpage->mode = SBCELT_MODE_FUTEX;
-			SBCELT_FUNC(celt_decode_float) = SBCELT_FUNC(celt_decode_float_futex);
+			if (futex_available()) {
+				workpage->mode = SBCELT_MODE_FUTEX;
+				SBCELT_FUNC(celt_decode_float) = SBCELT_FUNC(celt_decode_float_futex);
+			} else {
+				workpage->mode = SBCELT_MODE_RW;
+				SBCELT_FUNC(celt_decode_float) = SBCELT_FUNC(celt_decode_float_rw);
+			}
 			break;
 	}
 

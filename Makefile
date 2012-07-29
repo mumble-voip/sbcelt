@@ -4,14 +4,17 @@
 
 include Make.conf
 
+.PHONY: default
 default:
-	make -C lib
-	make -C helper
+	$(MAKE) -C lib
+	$(MAKE) -C helper
 
+.PHONY: install
 install:
-	make -C lib install
-	make -C helper install
+	$(MAKE) -C lib install
+	$(MAKE) -C helper install
 
+.PHONY: clean
 clean:
-	make -C lib clean
-	make -C helper clean
+	$(MAKE) -C lib clean
+	$(MAKE) -C helper clean

@@ -17,9 +17,10 @@
 #define SBCELT_SANDBOX_SECCOMP_STRICT  1
 #define SBCELT_SANDBOX_SECCOMP_BPF     2
 #define SBCELT_SANDBOX_SEATBELT        3
+#define SBCELT_SANDBOX_CAPSICUM        4
 
 #define SBCELT_SANDBOX_VALID(x) \
-	(x >= SBCELT_SANDBOX_NONE && x <= SBCELT_SANDBOX_SEATBELT)
+	(x >= SBCELT_SANDBOX_NONE && x <= SBCELT_SANDBOX_CAPSICUM)
 
 struct SBCELTWorkPage {
 	int            slot;          // The slot that the helper process should work on.

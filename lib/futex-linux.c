@@ -9,6 +9,10 @@
 
 #include "futex.h"
 
+int futex_available() {
+	return 1;
+}
+
 int futex_wake(int *futex) {
 	return syscall(SYS_futex, futex, FUTEX_WAKE, 1, NULL, NULL, 0);
 }

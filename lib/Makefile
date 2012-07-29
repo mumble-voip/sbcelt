@@ -9,9 +9,21 @@ SOURCES = \
 	stub.c
 
 ifeq ($(shell uname -s),Linux)
-SOURCES += futex-linux.c
-else
-SOURCES += futex-stub.c
+SOURCES += \
+	futex-linux.c \
+	closefrom.c
+endif
+
+ifeq ($(shell uname -s),Darwin)
+SOURCES += \
+	futex-stub.c \
+	closefrom.c
+endif
+
+ifeq ($(shell uname -s),FreeBSD)
+SOURCES += \
+	futex-stub.c \
+	closefrom-sys.c
 endif
 
 include ../Make.lib

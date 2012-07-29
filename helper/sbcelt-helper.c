@@ -17,14 +17,10 @@
 #include <sys/time.h>
 #include <sys/syscall.h>
 
-#ifdef __linux__
-# include <linux/prctl.h>
-# include <sys/prctl.h>
-#endif
-
 #include "celt.h"
 #include "../sbcelt-internal.h"
 
+#include "pdeath.h"
 #include "eintr.h"
 #include "futex.h"
 #include "sbcelt-sandbox.h"
@@ -121,6 +117,8 @@ static int SBCELT_RWHelper() {
 int main(int argc, char *argv[]) {
 	if (argc >= 2 && !strcmp(argv[1], "detect")) {
 		debugf("in seccomp-detect mode");
+		if (SBCELT_EnterSandbox(SBCELT_SANDBOX_CAPSICUM) == 0)
+			_exit(SBCELT_SANDBOX_CAPSICUM);
 		if (SBCELT_EnterSandbox(SBCELT_SANDBOX_SEATBELT) == 0)
 			_exit(SBCELT_SANDBOX_SEATBELT);
 		if (SBCELT_EnterSandbox(SBCELT_SANDBOX_SECCOMP_BPF) == 0)
@@ -132,12 +130,8 @@ int main(int argc, char *argv[]) {
 
 	debugf("helper running");
 
-	// For SBCELT_MODE_FUTEX it's very beneficial for us
-	// to be SIGKILL'd in case of parent death.
-#ifdef __linux__
-	if (prctl(PR_SET_PDEATHSIG, SIGKILL) == -1)
+	if (pdeath() == -1)
 		return 1;
-#endif
 
 	char shmfn[50];
 	if (snprintf(&shmfn[0], 50, "/sbcelt-%lu", (unsigned long) getppid()) < 0)

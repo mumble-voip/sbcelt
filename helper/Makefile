@@ -33,7 +33,8 @@ ifeq ($(shell uname -s),Linux)
 SOURCES += \
 	../lib/futex-linux.c \
 	seccomp-sandbox.c \
-	sbcelt-sandbox-linux.c
+	sbcelt-sandbox-linux.c \
+	pdeath-linux.c
 LDFLAGS += -lrt
 endif
 
@@ -41,7 +42,15 @@ ifeq ($(shell uname -s),Darwin)
 CFLAGS += -Wno-deprecated-declarations
 SOURCES += \
 	../lib/futex-stub.c \
-	sbcelt-sandbox-darwin.c
+	sbcelt-sandbox-darwin.c \
+	pdeath-kqueue.c
+endif
+
+ifeq ($(shell uname -s),FreeBSD)
+SOURCES += \
+	../lib/futex-stub.c \
+	sbcelt-sandbox-freebsd.c \
+	pdeath-kqueue.c
 endif
 
 include ../Make.cmd

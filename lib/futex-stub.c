@@ -6,6 +6,10 @@
 
 #include "futex.h"
 
+int futex_available() {
+	return 0;
+}
+
 int futex_wake(int *futex) {
 	return -1;
 }
