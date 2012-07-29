@@ -25,8 +25,7 @@ int SBCELT_EnterSandbox(int mode) {
 				fprintf(stderr, "unable to cap_enter(): %s (%i)\n", strerror(errno), errno);
 			}
 			return err;
-		}
-	
+		}	
 	}
 	return -1;
 }
