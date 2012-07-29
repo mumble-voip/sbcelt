@@ -30,8 +30,8 @@ struct SBCELTWorkPage {
 	unsigned char  sandbox;       // The sandbox technique that is used to jail the helper.
 	unsigned char  pingpong;      // Byte-sized value used for SBCELT_MODE_RW synchronization.
 	unsigned int   len;           // Specifies the length of encbuf to the helper process.
-	unsigned char  encbuf[2036];  // Holds the frame to be decoded.
-	float          decbuf[511];   // Holds the decoded PCM data.
+	unsigned char  encbuf[2048];  // Holds the frame to be decoded.
+	float          decbuf[480];   // Holds the decoded PCM data.
 };
 
 struct SBCELTDecoderSlot {
