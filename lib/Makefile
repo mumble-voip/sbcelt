@@ -22,7 +22,7 @@ endif
 
 ifeq ($(shell uname -s),FreeBSD)
 SOURCES += \
-	futex-stub.c \
+	futex-freebsd.c \
 	closefrom-sys.c
 endif
 

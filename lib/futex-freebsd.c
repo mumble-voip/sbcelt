@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style license
 // that can be found in the LICENSE-file.
 
-#include <linux/futex.h>
-#include <sys/syscall.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/umtx.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <stdio.h>
 
+#include "debug.h"
 #include "futex.h"
 
 int futex_available() {
@@ -14,13 +17,17 @@ int futex_available() {
 }
 
 int futex_wake(int *futex) {
-	return syscall(SYS_futex, futex, FUTEX_WAKE, 1, NULL, NULL, 0);
+	int ret = _umtx_op(futex, UMTX_OP_WAKE, 1, 0, 0);
+	if (ret != 0) {
+		return errno;
+	}
+	return 0;
 }
 
 int futex_wait(int *futex, int val, struct timespec *ts) {
-	int err = syscall(SYS_futex, futex, FUTEX_WAIT, val, ts, NULL, 0);
-	if (err == EWOULDBLOCK) {
-		return 0;
+	int ret = _umtx_op(futex, UMTX_OP_WAIT_UINT, val, 0, (void *)ts);
+	if (ret != 0) {
+		return errno;
 	}
-	return err;
+	return 0;
 }

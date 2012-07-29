@@ -437,7 +437,7 @@ int SBCELT_FUNC(celt_decode_float_futex)(CELTDecoder *st, const unsigned char *d
 		do {
 			struct timespec ts = { 0, (lastrun*2) * NSEC_PER_USEC };
 			int err = futex_wait(&workpage->ready, 0, &ts);
-			if (err == 0 || err == EWOULDBLOCK) {
+			if (err == 0) {
 				break;
 			} else if (err == ETIMEDOUT) {
 				bad = 1;

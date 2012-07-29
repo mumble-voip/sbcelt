@@ -31,7 +31,7 @@
 # define debugf(fmt, ...) \
 	do { \
 		fprintf(stderr, "sbcelt-helper:%s():%u: " fmt "\n", \
-			__FILE__, __LINE__, ## __VA_ARGS__); \
+			__FUNCTION__, __LINE__, ## __VA_ARGS__); \
 		fflush(stderr); \
 	} while (0)
 #else
@@ -84,7 +84,7 @@ static int SBCELT_FutexHelper() {
 		// Wait for the lib to signal us.
 		while (workpage->ready == 1) {
 			int err = futex_wait(&workpage->ready, 1, NULL);
-			if (err == 0 || err == EWOULDBLOCK) {
+			if (err == 0) {
 				break;
 			}
 		}

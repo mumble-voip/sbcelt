@@ -48,7 +48,7 @@ endif
 
 ifeq ($(shell uname -s),FreeBSD)
 SOURCES += \
-	../lib/futex-stub.c \
+	../lib/futex-freebsd.c \
 	sbcelt-sandbox-freebsd.c \
 	pdeath-kqueue.c
 endif

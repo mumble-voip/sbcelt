@@ -9,7 +9,7 @@
 # define debugf(fmt, ...) \
         do { \
                 fprintf(stderr, "libsbcelt:%s():%u: " fmt "\n", \
-                    __FILE__, __LINE__, ## __VA_ARGS__); \
+                    __FUNCTION__, __LINE__, ## __VA_ARGS__); \
                 fflush(stderr); \
         } while (0)
 #else
