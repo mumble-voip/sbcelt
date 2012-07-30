@@ -17,17 +17,17 @@ int futex_available() {
 }
 
 int futex_wake(int *futex) {
-	int ret = _umtx_op(futex, UMTX_OP_WAKE, 1, 0, 0);
-	if (ret != 0) {
-		return errno;
-	}
-	return 0;
+	return _umtx_op(futex, UMTX_OP_WAKE, 1, 0, 0);
 }
 
 int futex_wait(int *futex, int val, struct timespec *ts) {
-	int ret = _umtx_op(futex, UMTX_OP_WAIT_UINT, val, 0, (void *)ts);
-	if (ret != 0) {
-		return errno;
+	int err = _umtx_op(futex, UMTX_OP_WAIT_UINT, val, 0, (void *)ts);
+	if (err != 0) {
+		if (errno == ETIMEDOUT) {
+			return FUTEX_TIMEDOUT;
+		} else if (errno == EINTR) { // XXX: unsure if umtx can be EINTR'd.
+			return FUTEX_INTERRUPTED;
+		}
 	}
-	return 0;
+	return err;
 }

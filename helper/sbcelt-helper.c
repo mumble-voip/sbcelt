@@ -42,7 +42,7 @@ static struct SBCELTWorkPage *workpage = NULL;
 static struct SBCELTDecoderPage *decpage = NULL;
 static CELTMode *modes[SBCELT_SLOTS];
 static CELTDecoder *decoders[SBCELT_SLOTS];
- 
+
 static void SBCELT_DecodeSingleFrame() {
 	unsigned char *src = &workpage->encbuf[0];
 	float *dst = &workpage->decbuf[0];

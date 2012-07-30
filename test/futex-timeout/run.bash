@@ -11,7 +11,7 @@ case "${UNAME}" in
 esac
 
 rm -f _test
-cc -lpthread -I ../../lib futex_timeout.c ../../lib/futex-${UNAME}.c ../../lib/mtime.c -o _test
+cc -I ../../lib futex_timeout.c ../../lib/futex-${UNAME}.c ../../lib/mtime.c -lpthread -o _test
 ./_test
 if [ $? -eq 0 ]
 then

@@ -6,6 +6,7 @@
 #include <sys/prctl.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <signal.h>
 
 int pdeath() {
 	if (prctl(PR_SET_PDEATHSIG, SIGKILL) == -1)

@@ -6,6 +6,7 @@
 #include <sys/syscall.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "futex.h"
 
@@ -19,8 +20,14 @@ int futex_wake(int *futex) {
 
 int futex_wait(int *futex, int val, struct timespec *ts) {
 	int err = syscall(SYS_futex, futex, FUTEX_WAIT, val, ts, NULL, 0);
-	if (err == EWOULDBLOCK) {
-		return 0;
+	if (err == -1) {
+		if (errno == EWOULDBLOCK) {
+			return 0;
+		} else if (errno == ETIMEDOUT) {
+			return FUTEX_TIMEDOUT;
+		} else if (errno == EINTR) {
+			return FUTEX_INTERRUPTED;
+		}
 	}
 	return err;
 }

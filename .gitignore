@@ -5,3 +5,4 @@ bench-celt/celt-bench
 bench-sbcelt/sbcelt-bench
 bench/results
 bench/test.dat
+_test
