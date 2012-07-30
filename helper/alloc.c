@@ -9,28 +9,43 @@
 
 #define ALIGN_UP(addr,sz)    (((addr)+sz-1) & ~(sz-1))
 #define ARENA_SIZE           8*1024*1024 // 8MB
+#define ARENA_ALIGN          4096        // 4KB
 
-static unsigned char arena[ARENA_SIZE];
+static unsigned char arena[ARENA_SIZE] __attribute__((aligned (ARENA_ALIGN)));
 static void *ptr = NULL;
-static size_t remain = ARENA_SIZE;
+static void *outside = NULL;
+
+__attribute__((constructor))
+static void malloc_ctor() {
+	ptr = &arena[0];
+	outside = ptr + ARENA_SIZE;
+}
 
 void *malloc(size_t size) {
-	if (ptr == NULL) {
-		ptr = &arena[0];
+	// CTOR sanity checking.
+	if (ptr == NULL || outside == NULL) {
+		_exit(51);
 	}
 
-	if (size > remain) {
+	// Ensure our allocations end on a 8-byte boundary.
+	size = size + sizeof(size_t);
+	size = ALIGN_UP(size, 8);
+
+	// Atomic add; returns old value.
+	void *region = __sync_fetch_and_add(&ptr, size);
+	// Check whether the region we were handed by the
+	// allocator can actually fit in the arena.
+	if ((region+size-1) >= outside) {
+		_exit(50);
+	// Also check the pointer itself exceeds the arena.
+	} else if (region >= outside) {
 		_exit(50);
 	}
 
-	void *ret = ptr + sizeof(size_t);
-	size_t *sz = (size_t *) ptr;
-
-	ptr += sizeof(size_t) + size;
-	ptr = (void *) ALIGN_UP((uintptr_t)ptr, 4);
-	remain -= size;
-
+	size_t *sz = (size_t *) region;
 	*sz = size;
+
+	void *ret = region + sizeof(size_t);
 	memset(ret, 0, size);
 
 	return ret;

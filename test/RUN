@@ -2,3 +2,7 @@
 
 futex-expected-value
 futex-timeout
+alloc-ensure-8k
+alloc-exhaust
+alloc-arena-alignment
+alloc-ctor
