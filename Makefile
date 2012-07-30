@@ -18,3 +18,9 @@ install:
 clean:
 	$(MAKE) -C lib clean
 	$(MAKE) -C helper clean
+	@cd test && ./clean.bash
+
+.PHONY: test
+test:
+	@cd test && ./run.bash
+	

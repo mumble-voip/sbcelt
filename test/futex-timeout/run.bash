@@ -6,7 +6,7 @@ case "${UNAME}" in
 	"freebsd") ;;
 	*)
 		echo skip
-		exit
+		exit 2
 		;;
 esac
 
@@ -15,7 +15,7 @@ cc -I ../../lib futex_timeout.c ../../lib/futex-${UNAME}.c ../../lib/mtime.c -lp
 ./_test
 if [ $? -eq 0 ]
 then
-	echo ok
+	exit 0
 else
-	echo fail
+	exit 1
 fi
