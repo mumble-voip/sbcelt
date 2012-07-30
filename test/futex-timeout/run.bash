@@ -4,10 +4,7 @@ UNAME=$(uname -s | tr [:upper:] [:lower:])
 case "${UNAME}" in
 	"linux") ;;
 	"freebsd") ;;
-	*)
-		echo skip
-		exit 2
-		;;
+	*) exit 2 ;;
 esac
 
 rm -f _test
