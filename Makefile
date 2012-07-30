@@ -9,11 +9,6 @@ default:
 	$(MAKE) -C lib
 	$(MAKE) -C helper
 
-.PHONY: install
-install:
-	$(MAKE) -C lib install
-	$(MAKE) -C helper install
-
 .PHONY: clean
 clean:
 	$(MAKE) -C lib clean

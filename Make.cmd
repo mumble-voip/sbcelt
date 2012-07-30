@@ -35,7 +35,3 @@ $(TARGET): $(OBJECTS)
 
 clean:
 	@rm -f $(TARGET) $(TARGET).list $(OBJECTS)
-
-install:
-	@echo "INSTALL  ${TARGET}"
-	@cp $(TARGET) /usr/bin/$(TARGET)
