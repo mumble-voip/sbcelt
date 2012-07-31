@@ -3,6 +3,8 @@
 rm -rf results
 mkdir -p results
 
+export SBCELT_HELPER_BINARY=`pwd`/../helper/sbcelt-helper
+
 cp ../bench-celt/test.dat .
 
 # celt lib
