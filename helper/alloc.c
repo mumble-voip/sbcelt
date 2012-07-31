@@ -32,7 +32,8 @@ void *malloc(size_t size) {
 	size = ALIGN_UP(size, 8);
 
 	// Atomic add; returns old value.
-	void *region = __sync_fetch_and_add(&ptr, size);
+	void *incr = (void *) size;
+	void *region = __sync_fetch_and_add(&ptr, incr);
 	// Check whether the region we were handed by the
 	// allocator can actually fit in the arena.
 	if ((region+size-1) >= outside) {
