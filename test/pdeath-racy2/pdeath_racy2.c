@@ -1,6 +1,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdint.h>
 
 #include "pdeath.h"
 #include "mtime.h"
@@ -10,9 +11,9 @@ int main(int argc, char *argv[]) {
 	pid_t pid = fork();
 	if (pid == 0) {
 		// Close parent's fds.
-		HANDLE_EINTR(close(0));
-		HANDLE_EINTR(close(1));
-		HANDLE_EINTR(close(2));
+		(void) HANDLE_EINTR(close(0));
+		(void) HANDLE_EINTR(close(1));
+		(void) HANDLE_EINTR(close(2));
 
 		usleep(USEC_PER_SEC*1);
 
