@@ -2,7 +2,11 @@
 
 import sys
 import json
-from numpy import array
+try:
+	from numpy import array
+except:
+	print 'Stat crunching requires numpy - skipping.'
+	sys.exit(0)
 
 def load_results(kind):
 	results = []
