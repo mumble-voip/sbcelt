@@ -6,3 +6,6 @@ alloc-ensure-align8
 alloc-exhaust
 alloc-arena-alignment
 alloc-ctor
+pdeath
+pdeath-racy
+pdeath-racy2
